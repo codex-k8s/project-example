@@ -1,0 +1,102 @@
+name: "Staging deploy  🚀"
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: "Deploy staging via codexctl 🚀"
+    if: >
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[skip-ci]') &&
+      !contains(github.event.head_commit.message, '[no ci]') &&
+      !contains(github.event.head_commit.message, '[no-ci]')
+    runs-on: self-hosted
+    environment: staging
+    steps:
+      - name: "Checkout project-example 📥"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Mirror external images 🪞"
+        env:
+          REGISTRY_HOST: localhost:32000
+        run: |
+          set -euo pipefail
+          ./codexctl images mirror --env staging
+
+      - name: "Build service images 🏗️"
+        env:
+          REGISTRY_HOST: localhost:32000
+        run: |
+          set -euo pipefail
+          ./codexctl images build --env staging
+
+      - name: "Apply staging via codexctl 🚀"
+        env:
+          GITHUB_RUN_ID:        ${{ github.run_id }}
+          CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
+          CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+          OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
+          CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
+          DATA_ROOT:            ${{ vars.DATA_ROOT }}
+          POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
+          SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          ./codexctl apply --env staging --wait --preflight
+
+  gc-registry:
+    needs: deploy
+    runs-on: self-hosted
+    environment: staging
+    steps:
+      - name: "Checkout 📥"
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "GC docker registry container 🗑️"
+        run: |
+          set -euo pipefail
+          NAME="${DOCKER_REGISTRY_CONTAINER:-project-example-registry}"
+          if ! docker ps --format '{{.Names}}' | grep -q "^${NAME}$"; then
+            echo "info: registry container ${NAME} not running" >&2
+            exit 0
+          fi
+          echo "info: running registry GC inside ${NAME} (--delete-untagged=true)" >&2
+          set +e
+          docker exec "${NAME}" registry garbage-collect /etc/docker/registry/config.yml --delete-untagged=true
+          RC=$?
+          set -e
+          if [[ $RC -ne 0 ]]; then
+            echo "warn: GC with --delete-untagged failed; retrying without flag" >&2
+            docker exec "${NAME}" registry garbage-collect /etc/docker/registry/config.yml || true
+          fi
+          echo "info: GC finished" >&2
+        shell: bash
+

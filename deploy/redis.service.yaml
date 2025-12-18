@@ -1,0 +1,62 @@
+{{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
+{{- $envDir := ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) -}}
+{{- $imagePullPolicy := ternary (eq .Env "staging") "Always" "IfNotPresent" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        searches:
+          - {{ .Namespace }}.svc.cluster.local
+          - svc.cluster.local
+          - cluster.local
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: redis
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/redis:{{ index .Versions "redis-image" }}
+          imagePullPolicy: {{ $imagePullPolicy }}
+          command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
+          envFrom:
+            - secretRef:
+                name: redis-secret
+            - configMapRef:
+                name: project-example-config
+            - configMapRef:
+                name: redis-config
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          hostPath:
+            path: {{ printf "%s/redis" $envDir }}
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+

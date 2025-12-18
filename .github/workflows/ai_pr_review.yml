@@ -1,0 +1,129 @@
+name: "AI PR Review 👁"
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: ai-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: "Review-fix agent run 🤖"
+    if: github.event.review.state == 'changes_requested'
+    runs-on: self-hosted
+    environment: staging
+    env:
+      CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
+      CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
+      DATA_ROOT:            ${{ vars.DATA_ROOT }}
+      GITHUB_RUN_ID:        ${{ github.run_id }}
+      CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+      OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
+      CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
+      POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
+      REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
+      SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+    steps:
+      - name: "Checkout PR head 📥"
+        uses: actions/checkout@v4
+        with:
+          ref:   ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.CODEX_GH_PAT }}
+          fetch-depth: 0
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Resolve slot and namespace for PR 📇"
+        id: card
+        env:
+          PR:            ${{ github.event.pull_request.number }}
+          DEV_SLOTS_MAX: ${{ vars.DEV_SLOTS_MAX }}
+        run: |
+          set -euo pipefail
+
+          PR_NUMBER="${PR}"
+          MAX="${DEV_SLOTS_MAX:-}"
+
+          echo "info: ensuring AI PR review environment ready via codexctl (ensure-ready)" >&2
+          export CODEX_WORKSPACE_UID="$(id -u)"
+          export CODEX_WORKSPACE_GID="$(id -g)"
+          ARGS=(manage-env ensure-ready --env ai --pr "${PR_NUMBER}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output json)
+          if [ -n "${MAX}" ]; then
+            ARGS+=(--max "${MAX}")
+          fi
+          OUT="$(./codexctl "${ARGS[@]}")"
+          echo "$OUT"
+
+          JSON_LINE="$(printf '%s\n' "$OUT" | tail -n1)"
+          SLOT="$(echo "$JSON_LINE" | jq -r '.slot')"
+          NS="$(echo "$JSON_LINE"   | jq -r '.namespace')"
+          CREATED="$(echo "$JSON_LINE" | jq -r '.created // false')"
+          RECREATED="$(echo "$JSON_LINE" | jq -r '.recreated // false')"
+
+          NEW_ENV="false"
+          if [ "${CREATED}" = "true" ] || [ "${RECREATED}" = "true" ]; then
+            NEW_ENV="true"
+          fi
+
+          if [ -z "${SLOT:-}" ] || [ -z "${NS:-}" ]; then
+            echo "error: cannot resolve slot/ns for PR ${PR_NUMBER}" >&2
+            exit 1
+          fi
+
+          echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
+          echo "NS=$NS"     >> "$GITHUB_OUTPUT"
+          echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
+
+      - name: "Run Codex review-fix agent 🤖"
+        env:
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
+          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ steps.card.outputs.SLOT }}"
+          NS="${{ steps.card.outputs.NS }}"
+          PR="${{ github.event.pull_request.number }}"
+          ARGS=(prompt run --env ai --slot "${SLOT}" --kind review_fix --lang ru)
+          if [ -n "$NS" ]; then
+            ARGS+=(--namespace "$NS")
+          fi
+          if [ -n "$PR" ]; then
+            ARGS+=(--pr "$PR")
+          fi
+          ./codexctl "${ARGS[@]}"
+
+      - name: "Apply review changes and comment 💾"
+        env:
+          SLOT:               ${{ steps.card.outputs.SLOT }}
+          PR_NUMBER:          ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+          CODEX_GH_PAT:       ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          ./codexctl pr review-apply \
+            --env ai \
+            --slot "${SLOT}" \
+            --pr "${PR_NUMBER}" \
+            --code-root-base "${CODE_ROOT_BASE}" \
+            --lang ru
+

@@ -1,0 +1,64 @@
+{{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
+{{- $envDir := ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) -}}
+{{- $imagePullPolicy := ternary (eq .Env "staging") "Always" "IfNotPresent" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        searches:
+          - {{ .Namespace }}.svc.cluster.local
+          - svc.cluster.local
+          - cluster.local
+        options:
+          - name: ndots
+            value: "1"
+      containers:
+        - name: postgres
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/postgres:{{ index .Versions "postgres-image" }}
+          imagePullPolicy: {{ $imagePullPolicy }}
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: project-example-config
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: postgres-data
+          hostPath:
+            path: {{ printf "%s/postgres" $envDir }}
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+

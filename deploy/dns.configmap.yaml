@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+            lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+            ttl 30
+        }
+        prometheus :9153
+        forward . tls://8.8.8.8 tls://8.8.4.4 {
+            tls_servername dns.google
+            health_check 5s
+        }
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+

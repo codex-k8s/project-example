@@ -1,0 +1,297 @@
+name: "AI Dev Issue 🛠"
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: ai-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  create-ai:
+    name: "Allocate slot 🧩"
+    if: github.event.label.name == '[ai-dev]'
+    runs-on: self-hosted
+    timeout-minutes: 360
+    environment: staging
+    outputs:
+      slot: ${{ steps.alloc.outputs.slot }}
+      namespace: ${{ steps.alloc.outputs.namespace }}
+    steps:
+      - name: "Checkout project-example 📥"
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Allocate slot via codexctl 🧩"
+        id: alloc
+        env:
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
+          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+        run: |
+          set -euo pipefail
+          ENV_NAME="ai"
+          ISSUE="${{ github.event.issue.number }}"
+          MAX="${{ vars.DEV_SLOTS_MAX }}"
+
+          ARGS=(manage-env ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}" --output json)
+          if [ -n "$MAX" ]; then
+            ARGS+=(--max "$MAX")
+          fi
+
+          OUT="$(./codexctl "${ARGS[@]}")"
+          echo "$OUT"
+          SLOT="$(echo "$OUT" | jq -r '.slot')"
+          NS="$(echo "$OUT"   | jq -r '.namespace')"
+          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
+          echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+
+  deploy-ai:
+    needs: [create-ai]
+    name: "Deploy AI environment 🚀"
+    runs-on: self-hosted
+    environment: staging
+    steps:
+      - name: "Checkout project-example 📥"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Ensure AI env ready via codexctl 🚀"
+        env:
+          GITHUB_RUN_ID:        ${{ github.run_id }}
+          CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
+          CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+          OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
+          CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
+          DATA_ROOT:            ${{ vars.DATA_ROOT }}
+          POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
+          SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ needs.create-ai.outputs.slot }}"
+          ISSUE="${{ github.event.issue.number }}"
+          MAX="${{ vars.DEV_SLOTS_MAX }}"
+          export CODEX_WORKSPACE_UID="$(id -u)"
+          export CODEX_WORKSPACE_GID="$(id -g)"
+          ARGS=(manage-env ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output json)
+          if [ -n "$MAX" ]; then
+            ARGS+=(--max "$MAX")
+          fi
+          OUT="$(./codexctl "${ARGS[@]}")"
+          echo "$OUT"
+
+  run-codex:
+    needs: [create-ai, deploy-ai]
+    name: "Run dev agent 🤖"
+    runs-on: self-hosted
+    environment: staging
+    env:
+      CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
+      CODEX_GH_PAT:   ${{ secrets.CODEX_GH_PAT }}
+    steps:
+      - name: "Checkout default branch 📥"
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Ensure working branch 🌿"
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+        run: |
+          set -euo pipefail
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@example.com"
+          git checkout -b "codex/issue-${ISSUE_NUMBER}" || git checkout "codex/issue-${ISSUE_NUMBER}"
+        shell: bash
+
+      - name: "Run Codex dev agent 🤖"
+        env:
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
+          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
+        run: |
+          set -euo pipefail
+          SLOT="${{ needs.create-ai.outputs.slot }}"
+          NS="${{ needs.create-ai.outputs.namespace }}"
+          ISSUE="${{ github.event.issue.number }}"
+          ARGS=(prompt run --env ai --slot "${SLOT}" --kind dev_issue --lang ru)
+          if [ -n "$NS" ]; then
+            ARGS+=(--namespace "$NS")
+          fi
+          if [ -n "$ISSUE" ]; then
+            ARGS+=(--issue "$ISSUE")
+          fi
+          ./codexctl "${ARGS[@]}"
+
+      - name: "Auto-commit and push changes 📤"
+        env:
+          SLOT:  ${{ needs.create-ai.outputs.slot }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+
+          BRANCH="codex/issue-${ISSUE}"
+          if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+            git checkout "$BRANCH"
+          fi
+
+          rm -rf .bin || true
+
+          git add -u
+          git add docs proto services libs || true
+
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+            exit 0
+          fi
+
+          MSG="feat: apply Codex changes for issue #${ISSUE}"
+          git commit -m "$MSG"
+          git push origin "$BRANCH"
+
+      - name: "Detect PR for issue branch 🔎"
+        id: detect_pr
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          BRANCH="codex/issue-${ISSUE_NUMBER}"
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+
+          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+
+          PRN="$(gh pr list --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)"
+          if [ -z "${PRN}" ]; then
+            echo "warn: PR not found for branch ${BRANCH}" >&2
+            exit 0
+          fi
+
+          echo "PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
+
+      - name: "Attach PR number to slot 🏷️"
+        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
+        run: |
+          set -euo pipefail
+          ./codexctl manage-env set --env ai --slot "${SLOT}" --pr "${PR_NUMBER}"
+
+      - name: "Comment to PR with env links 🔗"
+        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          ./codexctl manage-env comment --env ai --slot "${SLOT}" --lang ru > "${BODY_FILE}"
+
+          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}"
+
+  cleanup-ai:
+    needs: [create-ai, deploy-ai, run-codex]
+    if: always()
+    name: "Cleanup on failure 🧹"
+    runs-on: self-hosted
+    environment: staging
+    env:
+      CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+      DATA_ROOT: ${{ vars.DATA_ROOT }}
+    steps:
+      - name: "Checkout minimal 📥"
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Checkout codexctl 📥"
+        uses: actions/checkout@v4
+        with:
+          repository: codex-k8s/codexctl
+          ref: main
+          path: ./.codexctl
+          token: ${{ secrets.CODEX_GH_PAT }}
+
+      - name: "Build codexctl ⚒️"
+        run: |
+          set -euo pipefail
+          cd ./.codexctl
+          go build -o ../codexctl ./cmd/codexctl
+
+      - name: "Cleanup AI slot on failure (global) 🧹"
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+
+          STATUS_CREATE="${{ needs.create-ai.result }}"
+          STATUS_DEPLOY="${{ needs.deploy-ai.result }}"
+          STATUS_RUN="${{ needs.run-codex.result }}"
+
+          if [ "${STATUS_CREATE}" = "success" ] && [ "${STATUS_DEPLOY}" = "success" ] && [ "${STATUS_RUN}" = "success" ]; then
+            echo "info: primary AI Dev Issue workflow completed successfully, no cleanup required" >&2
+            exit 0
+          fi
+
+          ./codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
+

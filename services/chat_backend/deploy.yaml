@@ -1,0 +1,134 @@
+{{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
+{{- $tagEnv := ternary (eq .Env "ai") "staging" .Env -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-backend-config
+  namespace: {{ .Namespace }}
+data:
+  SERVICE_NAME: "chat-backend"
+  HTTP_PORT: "8080"
+  TZ: "UTC"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-backend
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-backend
+  template:
+    metadata:
+      labels:
+        app: chat-backend
+    spec:
+      {{- if eq .Env "ai" }}
+      securityContext:
+        fsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+      {{- end }}
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        searches:
+          - {{ .Namespace }}.svc.cluster.local
+          - svc.cluster.local
+          - cluster.local
+        options:
+          - name: ndots
+            value: "1"
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          command:
+            - sh
+            - -c
+            - >-
+              until nc -zw1 postgres 5432; do
+                echo "waiting for postgres";
+                sleep 2;
+              done
+        - name: wait-for-redis
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          command:
+            - sh
+            - -c
+            - >-
+              until nc -zw1 redis 6379; do
+                echo "waiting for redis";
+                sleep 2;
+              done
+      containers:
+        - name: chat-backend
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/chat-backend:{{ $tagEnv }}-{{ index .Versions "chat-backend" }}
+          ports:
+            - containerPort: 8080
+              name: http
+          {{- if or (eq .Env "ai") (eq .Env "staging") }}
+          securityContext:
+            runAsUser: {{ envOr "CODEX_WORKSPACE_UID" "1000" }}
+            runAsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - secretRef:
+                name: redis-secret
+            - configMapRef:
+                name: project-example-config
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: redis-config
+            - configMapRef:
+                name: chat-backend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-backend
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: chat-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chat-backend-ingress
+  namespace: {{ .Namespace }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ $host }}
+      secretName: project-example-tls
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-backend
+                port:
+                  number: 8080
+

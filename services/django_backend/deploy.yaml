@@ -1,0 +1,184 @@
+{{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
+{{- $tagEnv := ternary (eq .Env "ai") "staging" .Env -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: django-backend-config
+  namespace: {{ .Namespace }}
+data:
+  DB_SHOW_DEBUG: "0"
+  DEBUG: "1"
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  USE_SSL: "1"
+  ALLOW_IP_RANGE: "0.0.0.0/0"
+  TZ: "UTC"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-backend
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django-backend
+  template:
+    metadata:
+      labels:
+        app: django-backend
+    spec:
+      {{- if eq .Env "ai" }}
+      securityContext:
+        fsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+      {{- end }}
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        searches:
+          - {{ .Namespace }}.svc.cluster.local
+          - svc.cluster.local
+          - cluster.local
+        options:
+          - name: ndots
+            value: "1"
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          command:
+            - sh
+            - -c
+            - >-
+              until nc -zw1 postgres 5432; do
+                echo "waiting for postgres";
+                sleep 2;
+              done
+        - name: wait-for-redis
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          command:
+            - sh
+            - -c
+            - >-
+              until nc -zw1 redis 6379; do
+                echo "waiting for redis";
+                sleep 2;
+              done
+        - name: django-backend-migrate
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              python manage.py migrate --noinput
+              python manage.py collectstatic --noinput
+          workingDir: /backend
+          envFrom:
+            - secretRef:
+                name: crypto-secret
+            - secretRef:
+                name: db-secret
+            - secretRef:
+                name: redis-secret
+            - configMapRef:
+                name: project-example-config
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: redis-config
+            - configMapRef:
+                name: django-backend-config
+      containers:
+        - name: django-backend
+          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
+          ports:
+            - containerPort: 8000
+          {{- if or (eq .Env "ai") (eq .Env "staging") }}
+          securityContext:
+            runAsUser: {{ envOr "CODEX_WORKSPACE_UID" "1000" }}
+            runAsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health/livez/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/readyz/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health/livez/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 10
+          envFrom:
+            - secretRef:
+                name: crypto-secret
+            - secretRef:
+                name: db-secret
+            - secretRef:
+                name: redis-secret
+            - configMapRef:
+                name: project-example-config
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: redis-config
+            - configMapRef:
+                name: django-backend-config
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: DJANGO_ALLOWED_HOSTS
+              value: "{{ $host }} $(POD_IP) django-backend"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-backend
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: django-backend
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: django-backend-ingress
+  namespace: {{ .Namespace }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ $host }}
+      secretName: project-example-tls
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /static
+            pathType: Prefix
+            backend:
+              service:
+                name: django-backend
+                port:
+                  number: 80
+          - path: /admin(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: django-backend
+                port:
+                  number: 80
+

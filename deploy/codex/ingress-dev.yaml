@@ -1,0 +1,55 @@
+{{- if eq .Env "ai" }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-dev-{{ .Slot }}
+  namespace: {{ .Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - dev-{{ .Slot }}.{{ index .BaseDomain "ai" }}
+      secretName: {{ printf "project-example-dev-%d-tls" .Slot }}
+  rules:
+    - host: dev-{{ .Slot }}.{{ index .BaseDomain "ai" }}
+      http:
+        paths:
+          - path: /jaeger(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: jaeger
+                port:
+                  number: 16686
+          - path: /static(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: django-backend
+                port:
+                  number: 80
+          - path: /admin(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: django-backend
+                port:
+                  number: 80
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-backend
+                port:
+                  number: 8080
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: web-frontend
+                port:
+                  number: 80
+{{- end }}
+
