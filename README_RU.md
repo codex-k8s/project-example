@@ -54,8 +54,6 @@ microk8s enable dns storage ingress registry rbac
 
 Проверяем, что кластер готов:
 
-!!!!!! ОСТАНОВИЛСЯ ТУТ !!!!!!
-
 ```bash
 microk8s status --wait-ready
 microk8s kubectl get nodes
@@ -68,8 +66,6 @@ mkdir -p /home/runner/.kube
 microk8s config | sudo tee /home/runner/.kube/microk8s.config >/dev/null
 sudo chown -R runner:runner /home/runner/.kube
 ```
-
-!!!!!! ОСТАНОВИЛСЯ ТУТ !!!!!!
 
 ### 1.4. Установка Docker и insecure‑registry
 
@@ -107,6 +103,21 @@ cat <<EOF | sudo tee /etc/docker/daemon.json
 EOF
 
 sudo systemctl restart docker
+```
+
+### 1.5. Установка Golang 1.25+
+
+```bash
+cd /tmp
+wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+```
+
+Добавить Go в PATH
+
+```bash
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ## 2. Структура проекта
