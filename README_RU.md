@@ -105,6 +105,21 @@ EOF
 sudo systemctl restart docker
 ```
 
+После установки Docker **обязательно авторизуйтесь на Docker Hub** под пользователем,
+от имени которого запускается runner (обычно `runner`), чтобы избежать лимитов
+на анонимные `pull`:
+
+```bash
+sudo -iu runner
+docker login
+```
+
+Логин/пароль берутся от вашего Docker Hub аккаунта. Без этого при работе
+`codexctl images mirror`/`build` можно упереться в сообщение вида:
+
+> You have reached your unauthenticated pull rate limit.
+
+
 ### 1.5. Установка Golang 1.25+
 
 ```bash
