@@ -135,6 +135,20 @@ echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 ```
 
+### 1.6. Установка kubectl
+
+Для работы `codexctl` с Kubernetes нужен бинарник `kubectl`. Установим его
+в `/usr/local/bin/kubectl` (эта директория добавлена в `PATH` в воркфлоу).
+
+```bash
+KUBECTL_VERSION=v1.34.1   # или нужная вам версия
+curl -fsSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/kubectl
+
+kubectl version --client --output=yaml || true
+```
+
 ## 2. Структура проекта
 
 Основные директории:

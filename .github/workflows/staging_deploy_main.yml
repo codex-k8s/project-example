@@ -18,6 +18,8 @@ jobs:
       !contains(github.event.head_commit.message, '[no-ci]')
     runs-on: self-hosted
     environment: staging
+    env:
+      PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -35,7 +37,7 @@ jobs:
 
       - name: "Build codexctl ⚒️"
         env:
-          PATH: ${{ env.PATH }}:/usr/local/go/bin
+          PATH: ${{ env.PATH }}:/usr/local/go/bin:/usr/local/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -44,6 +46,7 @@ jobs:
       - name: "Mirror external images 🪞"
         env:
           REGISTRY_HOST: localhost:32000
+          PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
         run: |
           set -euo pipefail
           ./codexctl images mirror --env staging
@@ -51,6 +54,7 @@ jobs:
       - name: "Build service images 🏗️"
         env:
           REGISTRY_HOST: localhost:32000
+          PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
         run: |
           set -euo pipefail
           ./codexctl images build --env staging
@@ -68,6 +72,7 @@ jobs:
           POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
           SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+          PATH:                 /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
         run: |
           set -euo pipefail
           ./codexctl apply --env staging --wait --preflight

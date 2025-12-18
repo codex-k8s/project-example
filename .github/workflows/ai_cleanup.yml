@@ -18,6 +18,7 @@ jobs:
     env:
       CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
       DATA_ROOT: ${{ vars.DATA_ROOT }}
+      PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -34,7 +35,7 @@ jobs:
 
       - name: "Build codexctl ⚒️"
         env:
-          PATH: ${{ env.PATH }}:/usr/local/go/bin
+          PATH: ${{ env.PATH }}:/usr/local/go/bin:/usr/local/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -45,6 +46,7 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
         run: |
           set -euo pipefail
           ./codexctl manage-env cleanup --env ai --pr "${PR_NUMBER}" --with-configmap || true
@@ -58,6 +60,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
+          PATH: /usr/local/go/bin:/usr/local/bin:${{ env.PATH }}
         run: |
           set -euo pipefail
           ./codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
