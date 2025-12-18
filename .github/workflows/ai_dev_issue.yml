@@ -33,6 +33,8 @@ jobs:
           token: ${{ secrets.CODEX_GH_PAT }}
 
       - name: "Build codexctl ⚒️"
+        env:
+          PATH: ${{ env.PATH }}:/usr/local/go/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -83,6 +85,8 @@ jobs:
           token: ${{ secrets.CODEX_GH_PAT }}
 
       - name: "Build codexctl ⚒️"
+        env:
+          PATH: ${{ env.PATH }}:/usr/local/go/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -138,6 +142,8 @@ jobs:
           token: ${{ secrets.CODEX_GH_PAT }}
 
       - name: "Build codexctl ⚒️"
+        env:
+          PATH: ${{ env.PATH }}:/usr/local/go/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -273,6 +279,8 @@ jobs:
           token: ${{ secrets.CODEX_GH_PAT }}
 
       - name: "Build codexctl ⚒️"
+        env:
+          PATH: ${{ env.PATH }}:/usr/local/go/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -294,4 +302,3 @@ jobs:
           fi
 
           ./codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
-
