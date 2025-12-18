@@ -134,7 +134,18 @@ sudo systemctl restart docker
      (создание каталога, скачивание архива, запуск `config.sh`).
 2. Запустите runner как сервис (рекомендуется):
 
+> ниже пример для версии runner’а 2.329.0
 ```bash
+cd ~/
+mkdir actions-runner && cd actions-runner
+
+curl -o actions-runner-linux-x64-2.329.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.329.0/actions-runner-linux-x64-2.329.0.tar.gz
+echo "194f1e1e4bd02f80b7e9633fc546084d8d4e19f3928a324d512ea53430102e1d  actions-runner-linux-x64-2.329.0.tar.gz" | shasum -a 256 -c
+tar xzf ./actions-runner-linux-x64-2.329.0.tar.gz
+
+./config.sh --url https://github.com/codex-k8s/project-example --token YOUR_RUNNER_TOKEN
+// нажимайте Enter для имени и выбора типа runner’а
+
 sudo ./svc.sh install
 sudo ./svc.sh start
 ```
@@ -144,15 +155,11 @@ sudo ./svc.sh start
 - входит в группы `microk8s` и `docker`;
 - видит kubeconfig по пути `/home/runner/.kube/microk8s.config`.
 
-## 4. Клонирование репозитория и подготовка директорий
+## 4. Подготовка директорий
 
 ```bash
-cd /srv
-sudo mkdir -p /srv/codex/envs /srv/codex/data
-sudo chown -R runner:runner /srv/codex
-
-sudo -u runner git clone https://github.com/ВАШ_АККАУНТ/project-example.git
-cd project-example
+cd ~/
+mkdir -p ~/codex/envs ~/codex/data
 ```
 
 По умолчанию в `services.yaml`:
@@ -180,17 +187,16 @@ cd project-example
 Рекомендуемые переменные:
 
 - `CODE_ROOT_BASE` — базовый каталог для исходников dev‑AI слотов,
-  например `/srv/codex/envs/project-example`;
+  например `/home/runner/codex/envs/`;
 - `DATA_ROOT` — каталог с данными БД/Redis,
-  например `/srv/codex/data/project-example`;
+  например `/home/runner/codex/data/`;
 - `DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
 
 ### 5.2. Repository Secrets
 
 Минимальный набор:
 
-- `CODEX_GH_PAT` — GitHub Personal Access Token бота
-  (scopes: `repo`, `workflow`);
+- `CODEX_GH_PAT` — GitHub Personal Access Token бота (с правами на создание и редактирование PR/Issue и комментариев к ним. С правами на создание веток и пуш коммитов в них.);
 - `CODEX_GH_USERNAME` — имя пользователя бота;
 - `OPENAI_API_KEY` — ключ для OpenAI;
 - `CONTEXT7_API_KEY` — ключ для Context7;
