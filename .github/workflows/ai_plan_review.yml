@@ -45,6 +45,8 @@ jobs:
           fetch-depth: 1
 
       - name: "Build codexctl ⚒️"
+        env:
+          PATH: ${{ env.PATH }}:/usr/local/go/bin
         run: |
           set -euo pipefail
           cd ./.codexctl
@@ -158,4 +160,3 @@ jobs:
           fi
 
           ./codexctl "${ARGS[@]}"
-
