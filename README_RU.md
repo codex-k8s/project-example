@@ -59,12 +59,13 @@ microk8s status --wait-ready
 microk8s kubectl get nodes
 ```
 
-Сохраняем kubeconfig для стейджинга (под runner’ом):
+Сохраняем kubeconfig для стейджинга (под runner’ом) и сделаем его по умолчанию:
 
 ```bash
 mkdir -p /home/runner/.kube
 microk8s config | sudo tee /home/runner/.kube/microk8s.config >/dev/null
 sudo chown -R runner:runner /home/runner/.kube
+ln -sfn /home/runner/.kube/microk8s.config /home/runner/.kube/config
 ```
 
 ### 1.4. Установка Docker и insecure‑registry
@@ -270,8 +271,7 @@ microk8s kubectl get pods -n project-example-staging
 microk8s kubectl get ingress -n project-example-staging
 ```
 
-Если DNS и TLS настроены, фронтенд будет доступен по
-`https://staging.example-domain.ru/` (или по вашему домену).
+Если DNS и TLS настроены, фронтенд будет доступен по `https://staging.example-domain.ru/` (по вашему домену).
 
 Для локального теста можно:
 
