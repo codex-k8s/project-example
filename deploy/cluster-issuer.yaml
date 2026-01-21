@@ -5,11 +5,10 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@example.com
+    email: '{{ envOr "LETSENCRYPT_EMAIL" "admin@example-domain.ru" }}'
     privateKeySecretRef:
       name: letsencrypt-account-key
     solvers:
       - http01:
           ingress:
             class: nginx
-

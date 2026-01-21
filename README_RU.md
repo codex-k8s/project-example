@@ -245,6 +245,7 @@ mkdir -p ~/codex/envs ~/codex/data
 - `POSTGRES_PASSWORD` — пароль БД;
 - `REDIS_PASSWORD` — пароль Redis;
 - `SECRET_KEY` — секрет Django (`python -c "import secrets; print(secrets.token_urlsafe(50))"`).
+- `LETSENCRYPT_EMAIL` — email для регистрации ACME аккаунта в Let’s Encrypt (например, `admin@example-domain.ru`).
 
 Все эти переменные используются в:
 
