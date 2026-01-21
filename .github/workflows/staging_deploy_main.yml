@@ -62,6 +62,8 @@ jobs:
       - name: "Debug kube access 🧪"
         env:
           KUBECONFIG: /home/runner/.kube/microk8s.config
+          NO_PROXY: 127.0.0.1,localhost,::1
+          no_proxy: 127.0.0.1,localhost,::1
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
@@ -69,13 +71,29 @@ jobs:
           id
           echo "HOME=${HOME}"
           ls -la /home/runner/.kube
+          env | sort | rg -i 'proxy|kubeconfig|home' || true
+          ss -lntp | rg 16443 || true
           kubectl --kubeconfig /home/runner/.kube/microk8s.config config view --minify -o jsonpath='{.clusters[0].cluster.server}'; echo
-          curl -k https://127.0.0.1:16443/healthz; echo
+          set +e
+          echo "curl (default):"
+          curl -vk https://127.0.0.1:16443/healthz
+          CURL_RC=$?
+          echo
+          echo "curl (noproxy):"
+          curl --noproxy '*' -vk https://127.0.0.1:16443/healthz
+          CURL_NP_RC=$?
+          echo
+          echo "kubectl get ns:"
           kubectl --kubeconfig /home/runner/.kube/microk8s.config get ns
+          KUBE_RC=$?
+          set -e
+          echo "curl_rc=${CURL_RC} curl_noproxy_rc=${CURL_NP_RC} kubectl_rc=${KUBE_RC}"
 
       - name: "Apply staging via codexctl 🚀"
         env:
           KUBECONFIG:           /home/runner/.kube/microk8s.config
+          NO_PROXY:             127.0.0.1,localhost,::1
+          no_proxy:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
           CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
