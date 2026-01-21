@@ -77,8 +77,10 @@ jobs:
           PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
+          
           apply_attempts=3
           apply_delay=5
+          
           for attempt in $(seq 1 "${apply_attempts}"); do
             if ./codexctl apply --env staging --preflight; then
               break
@@ -95,6 +97,7 @@ jobs:
 
           wait_attempts=3
           wait_delay=5
+          
           for attempt in $(seq 1 "${wait_attempts}"); do
             if kubectl --kubeconfig /home/runner/.kube/microk8s.config \
               --request-timeout=600s \
