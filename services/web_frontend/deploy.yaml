@@ -62,6 +62,8 @@ spec:
               value: "/tmp"
             - name: NPM_CONFIG_CACHE
               value: "/tmp/npm-cache"
+            - name: VITE_ALLOWED_HOSTS
+              value: "{{ $host }}"
           envFrom:
             - configMapRef:
                 name: web-frontend-config
@@ -84,6 +86,8 @@ kind: Ingress
 metadata:
   name: web-frontend-ingress
   namespace: {{ .Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: nginx
   tls:

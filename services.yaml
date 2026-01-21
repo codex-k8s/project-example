@@ -264,3 +264,39 @@ services:
           - name: code-src
             hostPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
             mountPath: "/workspace"
+    hooks:
+      afterApply:
+        - name: reuse-dev-tls-secret
+          when: '{{ eq .Env "ai" }}'
+          run: |
+            set -euo pipefail
+            NS="{{ .Namespace }}"
+            SLOT="{{ .Slot }}"
+            if [ -z "${NS}" ]; then
+              exit 0
+            fi
+            if [ -z "${SLOT}" ] || [ "${SLOT}" = "0" ]; then
+              exit 0
+            fi
+            TLS_SECRET_NAME="project-example-dev-${SLOT}-tls"
+            if kubectl -n project-example-staging get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
+              kubectl -n project-example-staging get secret "${TLS_SECRET_NAME}" -o json \
+                | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)' \
+                | kubectl -n "${NS}" apply -f -
+            fi
+            echo "Waiting for TLS secret ${TLS_SECRET_NAME} to be ready in ${NS}..." >&2
+            for i in {1..120}; do
+              if kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 2
+            done
+            if ! kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
+              echo "warn: TLS secret ${TLS_SECRET_NAME} not ready yet" >&2
+            fi
+            if kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
+              echo "Persisting TLS secret ${TLS_SECRET_NAME} into project-example-staging (backup)" >&2
+              kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" -o json \
+                | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)' \
+                | kubectl -n project-example-staging apply -f -
+            fi

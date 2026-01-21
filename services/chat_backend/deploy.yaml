@@ -123,6 +123,8 @@ kind: Ingress
 metadata:
   name: chat-backend-ingress
   namespace: {{ .Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: nginx
   tls:

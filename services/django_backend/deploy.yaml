@@ -157,6 +157,8 @@ kind: Ingress
 metadata:
   name: django-backend-ingress
   namespace: {{ .Namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: nginx
   tls:
@@ -181,4 +183,3 @@ spec:
                 name: django-backend
                 port:
                   number: 80
-
