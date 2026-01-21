@@ -59,35 +59,6 @@ jobs:
           set -euo pipefail
           ./codexctl images build --env staging
 
-      - name: "Debug kube access 🧪"
-        env:
-          KUBECONFIG: /home/runner/.kube/microk8s.config
-          NO_PROXY: 127.0.0.1,localhost,::1
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
-        run: |
-          set -euo pipefail
-          whoami
-          id
-          echo "HOME=${HOME}"
-          ls -la /home/runner/.kube
-          env | sort | rg -i 'proxy|kubeconfig|home' || true
-          ss -lntp | rg 16443 || true
-          kubectl --kubeconfig /home/runner/.kube/microk8s.config config view --minify -o jsonpath='{.clusters[0].cluster.server}'; echo
-          set +e
-          echo "curl (default):"
-          curl -vk https://127.0.0.1:16443/healthz
-          CURL_RC=$?
-          echo
-          echo "curl (noproxy):"
-          curl --noproxy '*' -vk https://127.0.0.1:16443/healthz
-          CURL_NP_RC=$?
-          echo
-          echo "kubectl get ns:"
-          kubectl --kubeconfig /home/runner/.kube/microk8s.config get ns
-          KUBE_RC=$?
-          set -e
-          echo "curl_rc=${CURL_RC} curl_noproxy_rc=${CURL_NP_RC} kubectl_rc=${KUBE_RC}"
-
       - name: "Apply staging via codexctl 🚀"
         env:
           KUBECONFIG:           /home/runner/.kube/microk8s.config
@@ -106,7 +77,39 @@ jobs:
           PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          ./codexctl apply --env staging --wait --preflight
+          apply_attempts=3
+          apply_delay=5
+          for attempt in $(seq 1 "${apply_attempts}"); do
+            if ./codexctl apply --env staging --preflight; then
+              break
+            fi
+            if [ "${attempt}" -lt "${apply_attempts}" ]; then
+              echo "warn: codexctl apply failed (attempt ${attempt}/${apply_attempts}), retry in ${apply_delay}s" >&2
+              sleep "${apply_delay}"
+              apply_delay=$((apply_delay * 2))
+            else
+              echo "error: codexctl apply failed after ${apply_attempts} attempts" >&2
+              exit 1
+            fi
+          done
+
+          wait_attempts=3
+          wait_delay=5
+          for attempt in $(seq 1 "${wait_attempts}"); do
+            if kubectl --kubeconfig /home/runner/.kube/microk8s.config \
+              --request-timeout=600s \
+              wait --for=condition=Available deployment --all --timeout=1200s -n project-example-staging; then
+              break
+            fi
+            if [ "${attempt}" -lt "${wait_attempts}" ]; then
+              echo "warn: kubectl wait failed (attempt ${attempt}/${wait_attempts}), retry in ${wait_delay}s" >&2
+              sleep "${wait_delay}"
+              wait_delay=$((wait_delay * 2))
+            else
+              echo "error: kubectl wait failed after ${wait_attempts} attempts" >&2
+              exit 1
+            fi
+          done
 
   gc-registry:
     needs: deploy
