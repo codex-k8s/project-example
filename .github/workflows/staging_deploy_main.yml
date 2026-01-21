@@ -59,8 +59,23 @@ jobs:
           set -euo pipefail
           ./codexctl images build --env staging
 
+      - name: "Debug kube access 🧪"
+        env:
+          KUBECONFIG: /home/runner/.kube/microk8s.config
+          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+        run: |
+          set -euo pipefail
+          whoami
+          id
+          echo "HOME=${HOME}"
+          ls -la /home/runner/.kube
+          kubectl --kubeconfig /home/runner/.kube/microk8s.config config view --minify -o jsonpath='{.clusters[0].cluster.server}'; echo
+          curl -k https://127.0.0.1:16443/healthz; echo
+          kubectl --kubeconfig /home/runner/.kube/microk8s.config get ns
+
       - name: "Apply staging via codexctl 🚀"
         env:
+          KUBECONFIG:           /home/runner/.kube/microk8s.config
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
           CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
