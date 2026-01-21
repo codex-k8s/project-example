@@ -63,7 +63,6 @@ jobs:
         env:
           KUBECONFIG: /home/runner/.kube/microk8s.config
           NO_PROXY: 127.0.0.1,localhost,::1
-          no_proxy: 127.0.0.1,localhost,::1
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
@@ -93,7 +92,6 @@ jobs:
         env:
           KUBECONFIG:           /home/runner/.kube/microk8s.config
           NO_PROXY:             127.0.0.1,localhost,::1
-          no_proxy:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
           CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
