@@ -30,6 +30,14 @@ spec:
       containers:
         - name: web-frontend
           image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/web-frontend:{{ $tagEnv }}-{{ index .Versions "web-frontend" }}
+          command:
+            - sh
+            - -c
+            - >-
+              if [ ! -x /app/node_modules/.bin/vite ]; then
+                npm install --no-package-lock;
+              fi;
+              exec npm run dev -- --host 0.0.0.0 --port 5173
           ports:
             - containerPort: 5173
           {{- if or (eq .Env "ai") (eq .Env "staging") }}
@@ -49,6 +57,11 @@ spec:
               port: 5173
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            - name: HOME
+              value: "/tmp"
+            - name: NPM_CONFIG_CACHE
+              value: "/tmp/npm-cache"
           envFrom:
             - configMapRef:
                 name: web-frontend-config

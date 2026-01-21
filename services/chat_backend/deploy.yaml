@@ -82,6 +82,15 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            - name: HOME
+              value: "/tmp"
+            - name: GOCACHE
+              value: "/tmp/go-build-cache"
+            - name: GOMODCACHE
+              value: "/tmp/go-mod-cache"
+            - name: GOPATH
+              value: "/tmp/go"
           envFrom:
             - secretRef:
                 name: db-secret
@@ -131,4 +140,3 @@ spec:
                 name: chat-backend
                 port:
                   number: 8080
-
