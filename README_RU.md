@@ -150,16 +150,6 @@ sudo mv kubectl /usr/local/bin/kubectl
 kubectl version --client --output=yaml || true
 ```
 
-Дополнительно рекомендуется настроить доступ к кластеру microk8s:
-
-```bash
-CL=$(kubectl --kubeconfig /home/runner/.kube/microk8s.config config view -o jsonpath='{.clusters[0].name}')
-kubectl --kubeconfig /home/runner/.kube/microk8s.config config set-cluster "$CL" --server=https://127.0.0.1:16443
-
-kubectl --kubeconfig /home/runner/.kube/microk8s.config config view --minify -o jsonpath='{.clusters[0].cluster.server}'; echo
-kubectl --kubeconfig /home/runner/.kube/microk8s.config auth can-i get pods
-```
-
 ## 2. Структура проекта
 
 Основные директории:
