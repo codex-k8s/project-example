@@ -3,6 +3,8 @@
 project: project-example
 
 codex:
+  model: "gpt-5.2-codex"
+  modelReasoningEffort: "medium"
   extraTools:
     - psql
     - redis-cli
@@ -56,6 +58,7 @@ versions:
   chat-backend: "0.1.0"
   web-frontend: "0.1.0"
   codex: "0.1.0"
+  codexctl: "latest"
   busybox: "1.37.0"
   postgres-image: "16-bookworm"
   redis-image: "7-bookworm"
@@ -127,6 +130,7 @@ images:
       KUBECTL_VERSION: '{{ index .Versions "kubectl" }}'
       PROTOC_VERSION: '{{ index .Versions "protoc" }}'
       CODEX_IMAGE_VERSION: '{{ index .Versions "codex" }}'
+      CODEXCTL_VERSION: '{{ index .Versions "codexctl" }}'
 
 environments:
   dev:

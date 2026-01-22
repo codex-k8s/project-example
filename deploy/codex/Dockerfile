@@ -67,10 +67,12 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
  && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest \
  && GO111MODULE=on go install github.com/google/wire/cmd/wire@latest
 
+ARG CODEXCTL_VERSION=latest
+RUN go install github.com/codex-k8s/codexctl/cmd/codexctl@${CODEXCTL_VERSION}
+
 ARG KUBECTL_VERSION
 RUN curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
   && chmod +x /usr/local/bin/kubectl \
   && kubectl version --client --output=yaml || true
 
 CMD ["bash", "-lc", "sleep infinity"]
-
