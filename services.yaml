@@ -39,6 +39,13 @@ baseDomain:
   staging: '{{ envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru" }}'
   ai: '{{ envOr "BASE_DOMAIN_AI" (envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru") }}'
 
+dataPaths:
+  root: '{{ $dataRoot }}'
+  envDir: '{{ ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) }}'
+  dirs:
+    - postgres
+    - redis
+
 state:
   backend: configmap
   configmapNamespace: codex-system
@@ -144,17 +151,7 @@ hooks:
   beforeAll:
     - name: ensure-local-data-dirs
       when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
-      run: |
-        ROOT="{{ $dataRoot }}"
-        ENV_NAME="{{ .Env }}"
-        SLOT="{{ .Slot }}"
-        if [ "${ENV_NAME}" = "ai" ]; then
-          BASE="${ROOT}/slots/${SLOT:-ai}"
-        else
-          BASE="${ROOT}/${ENV_NAME}"
-        fi
-        mkdir -p "${BASE}/postgres" "${BASE}/redis"
-        chmod 0777 "${ROOT}" "${BASE}" "${BASE}/postgres" "${BASE}/redis" 2>/dev/null || true
+      use: codex.ensure-data-dirs
 
 infrastructure:
   - name: namespace-and-config
@@ -268,35 +265,4 @@ services:
       afterApply:
         - name: reuse-dev-tls-secret
           when: '{{ eq .Env "ai" }}'
-          run: |
-            set -euo pipefail
-            NS="{{ .Namespace }}"
-            SLOT="{{ .Slot }}"
-            if [ -z "${NS}" ]; then
-              exit 0
-            fi
-            if [ -z "${SLOT}" ] || [ "${SLOT}" = "0" ]; then
-              exit 0
-            fi
-            TLS_SECRET_NAME="project-example-dev-${SLOT}-tls"
-            if kubectl -n project-example-staging get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
-              kubectl -n project-example-staging get secret "${TLS_SECRET_NAME}" -o json \
-                | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)' \
-                | kubectl -n "${NS}" apply -f -
-            fi
-            echo "Waiting for TLS secret ${TLS_SECRET_NAME} to be ready in ${NS}..." >&2
-            for i in {1..120}; do
-              if kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
-                break
-              fi
-              sleep 2
-            done
-            if ! kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
-              echo "warn: TLS secret ${TLS_SECRET_NAME} not ready yet" >&2
-            fi
-            if kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" >/dev/null 2>&1; then
-              echo "Persisting TLS secret ${TLS_SECRET_NAME} into project-example-staging (backup)" >&2
-              kubectl -n "${NS}" get secret "${TLS_SECRET_NAME}" -o json \
-                | jq 'del(.metadata.namespace,.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.ownerReferences)' \
-                | kubectl -n project-example-staging apply -f -
-            fi
+          use: codex.reuse-dev-tls-secret
