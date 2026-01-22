@@ -13,7 +13,8 @@
   - `ensure-codex-secrets` (codex.beforeApply) — создание `openai-secret`, `github-secret`, `context7-secret`.
   - `check-dev-host-ports` (codex.afterApply) — проверка локальных портов 80/443 и ingress.
   - `reuse-dev-tls-secret` (codex.afterApply) — копирование TLS‑секрета между namespace.
-- В `/home/s/projects/project-example/services.yaml` есть `ensure-local-data-dirs` и `reuse-dev-tls-secret`, но они реализованы через `run: |`.
+- В `/home/s/projects/project-example/services.yaml` есть `ensure-local-data-dirs` и `reuse-dev-tls-secret`, реализованные через `run: |`.
+- Набор data‑директорий различается между проектами (например, Alimentor использует rabbitmq).
 
 ## Что меняем (что именно переносим в codexctl)
 ### 1) CI‑логика
@@ -26,19 +27,21 @@
 
 ### 2) Доменные хуки из services.yaml
 - В `/home/s/projects/codexctl/internal/hooks/hooks.go` добавляем встроенные хуки, которые заменят shell‑скрипты:
-  - `codex.ensure-data-dirs` — аналог `ensure-local-data-dirs` (создание каталогов для postgres/redis/rabbitmq в `DATA_ROOT`, с учетом ai‑слотов).
+  - `codex.ensure-data-dirs` — создание директорий данных на основе нового блока `dataPaths` в `services.yaml` (набор путей задаётся проектом и различается по нуждам).
   - `codex.ensure-codex-secrets` — аналог `ensure-codex-secrets` (создание `openai-secret`, `github-secret`, `context7-secret`, если значения есть в ENV).
   - `codex.check-dev-host-ports` — аналог `check-dev-host-ports` (best‑effort проверки портов 80/443 и HTTP‑probe).
   - `codex.reuse-dev-tls-secret` — аналог `reuse-dev-tls-secret` (копирование и ожидание TLS‑секрета между namespace).
-- В `/home/s/projects/Alimentor/services.yaml` и `/home/s/projects/project-example/services.yaml` заменяем `run: |` на `use: codex.*` и передаём параметры через `with:`.
+- В `/home/s/projects/codexctl/internal/config/config.go` добавляем поддержку нового блока `dataPaths` (список путей/шаблонов к директориям данных, задаётся в `services.yaml`).
 
 ## Где именно менять конфигурации
 - `/home/s/projects/Alimentor/services.yaml`:
+  - добавляем новый блок `dataPaths` (пути к папкам данных: postgres/redis/rabbitmq и т.д.).
   - `hooks.beforeAll.ensure-local-data-dirs` -> `use: codex.ensure-data-dirs`.
   - `services.codex.hooks.beforeApply.ensure-codex-secrets` -> `use: codex.ensure-codex-secrets`.
   - `services.codex.hooks.afterApply.check-dev-host-ports` -> `use: codex.check-dev-host-ports`.
   - `services.codex.hooks.afterApply.reuse-dev-tls-secret` -> `use: codex.reuse-dev-tls-secret`.
 - `/home/s/projects/project-example/services.yaml`:
+  - добавляем новый блок `dataPaths` (пути к папкам данных: postgres/redis и т.д.).
   - `hooks.beforeAll.ensure-local-data-dirs` -> `use: codex.ensure-data-dirs`.
   - `services.codex.hooks.afterApply.reuse-dev-tls-secret` -> `use: codex.reuse-dev-tls-secret`.
 
@@ -46,3 +49,4 @@
 - Снижение дублирования логики и расхождений между репозиториями.
 - Более стабильные пайплайны (единые ретраи/таймауты).
 - Упрощение `services.yaml` за счёт встроенных хуков codexctl.
+- Единый и явный список data‑директорий в `services.yaml` для корректного создания/очистки/удаления.
