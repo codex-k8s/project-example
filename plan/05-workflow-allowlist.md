@@ -1,19 +1,27 @@
 # 05-workflow-allowlist
 
-## Цель
-Ограничить запуск AI‑воркфлоу списком разрешенных пользователей и исключить автоматические комментарии бота.
+## Суть задачи
+Ограничить запуск AI‑воркфлоу списком разрешенных пользователей и исключить автотриггеры от бота.
 
-## Что делаем и где
-- Вводим переменную `AI_ALLOWED_USERS` (список логинов GitHub).
-  - Файлы: настройки репозиториев (Repo Variables).
-- Добавляем проверку allowlist в воркфлоу.
-  - Файлы: `project-example/.github/workflows/*.yml`, `Alimentor/.github/workflows/*.yml`.
-- Исключаем срабатывания на комментарии бота (`CODEX_GH_USERNAME`).
+## Где сейчас и нюансы (по результатам анализа)
+- В `/home/s/projects/project-example/.github/workflows/ai_plan_review.yml` есть проверка `github.actor != CODEX_GH_USERNAME`, но она не покрывает остальные воркфлоу.
+- Остальные AI‑воркфлоу (`ai_dev_issue.yml`, `ai_plan_issue.yml`, `ai_pr_review.yml`) запускаются без проверки автора.
+- В `/home/s/projects/Alimentor/.github/workflows/*` аналогичная ситуация.
 
-## Зачем
-- Предотвращаем бесконтрольные запуски AI‑задач.
-- Исключаем рекурсивные или паразитные триггеры от бота.
+## Что меняем (что именно добавляем)
+- В обоих репозиториях добавляем переменную `AI_ALLOWED_USERS` (список GitHub‑логинов).
+- В воркфлоу добавляем единый guard‑блок, который:
+  - блокирует запуск, если автор — `CODEX_GH_USERNAME`;
+  - разрешает запуск только если автор входит в `AI_ALLOWED_USERS`.
+- Изменения в файлах:
+  - `/home/s/projects/project-example/.github/workflows/ai_dev_issue.yml`
+  - `/home/s/projects/project-example/.github/workflows/ai_plan_issue.yml`
+  - `/home/s/projects/project-example/.github/workflows/ai_plan_review.yml`
+  - `/home/s/projects/project-example/.github/workflows/ai_pr_review.yml`
+  - `/home/s/projects/project-example/.github/workflows/ai_repair_issue.yml` (новый, если добавится)
+  - те же файлы в `/home/s/projects/Alimentor/.github/workflows/*`.
+  - `/home/s/projects/project-example/README_RU.md`
 
-## Ожидаемый результат
-- AI‑воркфлоу запускаются только от доверенных пользователей.
-- Комментарии бота не триггерят новые задания.
+## Зачем / ожидаемый эффект
+- Запуски AI‑тасков контролируются и предсказуемы.
+- Бот не триггерит сам себя.

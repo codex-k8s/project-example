@@ -1,24 +1,28 @@
 # 01-workflows-reuse
 
-## Цель
-Свести дублирование логики в GitHub Actions к минимуму и сделать единый источник правды в codexctl.
+## Суть задачи
+Сделать `codexctl` единым местом для повторяемой CI‑логики и максимально упростить воркфлоу в проектах.
 
-## Что делаем и где
-- В `codexctl` добавляем новый CLI‑слой для CI (группа команд `codexctl ci ...`).
-  - Файлы: `codexctl/internal/cli/ci.go` и связанные модули.
-  - Документация: `codexctl/README.md`, `codexctl/README_RU.md`.
-- В `project-example` и `Alimentor` заменяем повторяющиеся блоки в воркфлоу на короткие вызовы `codexctl ci ...`.
-  - Файлы: `project-example/.github/workflows/*.yml`, `Alimentor/.github/workflows/*.yml`.
+## Где сейчас и нюансы (по результатам анализа)
+- `/home/s/projects/project-example/.github/workflows/staging_deploy_main.yml` — ручные ретраи `codexctl apply` и отдельный `kubectl wait` с backoff; логика отличается от Alimentor.
+- `/home/s/projects/Alimentor/.github/workflows/staging_deploy_main.yml` — те же шаги, но без ретраев и без унифицированных таймаутов.
+- `/home/s/projects/project-example/.github/workflows/ai_dev_issue.yml`, `/home/s/projects/project-example/.github/workflows/ai_plan_issue.yml`, `/home/s/projects/project-example/.github/workflows/ai_plan_review.yml`, `/home/s/projects/project-example/.github/workflows/ai_pr_review.yml`, `/home/s/projects/project-example/.github/workflows/ai_cleanup.yml` — повторяются checkout codexctl, build codexctl, `manage-env ensure-ready`, `prompt run`, `manage-env cleanup`.
+- Аналогичная дублирующая структура в `/home/s/projects/Alimentor/.github/workflows/*`.
+- В `codexctl` уже есть рабочие примитивы: `/home/s/projects/codexctl/internal/cli/images.go`, `/home/s/projects/codexctl/internal/cli/apply.go`, `/home/s/projects/codexctl/internal/cli/manage_env.go`, `/home/s/projects/codexctl/internal/cli/prompt.go`, `/home/s/projects/codexctl/internal/cli/pr.go`.
+- `applyStack` в `/home/s/projects/codexctl/internal/cli/apply.go` содержит ретрай только на admission webhook ingress‑nginx; общие ретраи/таймауты делаются в YAML вручную.
+- `kubectl wait` в `/home/s/projects/codexctl/internal/kube/kube.go` не принимает request‑timeout и не имеет backoff‑логики.
 
-## Что именно переносим в codexctl
-- Повторяющиеся шаги: установка/сборка codexctl, зеркалирование/сборка образов, apply с ретраями, ожидание деплойментов, запуск prompt, cleanup/gc.
-- Единые таймауты, ретраи, backoff и вывод статусов в человеко‑читаемом и машинном формате.
+## Что меняем (что именно переносим в codexctl)
+- В `/home/s/projects/codexctl` добавляем группу `codexctl ci ...`, которая инкапсулирует:
+  - подготовку/проверку codexctl и окружения;
+  - `images mirror/build` с едиными параметрами;
+  - `apply` с ретраями и единым поведением ожидания;
+  - `manage-env ensure-ready` и `prompt run` с едиными выводами/форматами;
+  - `cleanup/gc` для ai‑слотов.
+- В `/home/s/projects/project-example/.github/workflows/*` и `/home/s/projects/Alimentor/.github/workflows/*` заменяем длинные блоки на один‑два вызова `codexctl ci ...`.
+- В `codexctl` документируем новый слой `ci` и список поддерживаемых параметров и выходных данных.
 
-## Зачем
-- Уменьшить размер воркфлоу и риск расхождений между репозиториями.
-- Стабилизировать поведение CI (ретраи и таймауты становятся консистентными).
-- Упростить публикацию и поддержку примера для сообщества.
-
-## Ожидаемый результат
-- Воркфлоу в обоих репозиториях содержат минимальные и понятные вызовы `codexctl ci ...`.
-- Любое изменение CI‑логики производится в одном месте — `codexctl`.
+## Зачем / ожидаемый эффект
+- Воркфлоу становятся короче и стабильнее; логика ретраев и таймаутов централизована.
+- Проекты перестают расходиться по поведению деплоя и запуска агентов.
+- Изменение CI‑поведения делается в одном месте — `/home/s/projects/codexctl`.

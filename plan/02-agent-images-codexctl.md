@@ -1,26 +1,20 @@
 # 02-agent-images-codexctl
 
-## Цель
-Сделать `codexctl` доступным внутри контейнеров агента, чтобы агент мог использовать утилиту напрямую.
+## Суть задачи
+Сделать `codexctl` доступным внутри контейнера агента во всех проектах, чтобы агент мог вызывать его напрямую.
 
-## Выбранный подход
-Установка через `go install` с закрепленной версией в `CODEXCTL_VERSION`.
+## Где сейчас и нюансы (по результатам анализа)
+- `/home/s/projects/project-example/deploy/codex/Dockerfile` и `/home/s/projects/Alimentor/deploy/codex/Dockerfile` не устанавливают `codexctl`.
+- `/home/s/projects/codexctl/examples/codex-agent/Dockerfile` собирает `codexctl` из локального исходного кода (`COPY .` + `go build`).
+- В обоих codex‑образах уже есть Go и `PATH`/`GOBIN` настроены так, чтобы `go install` мог класть бинарник в `/usr/local/bin`.
 
-## Что делаем и где
-- Добавляем версию `codexctl` в версии образов.
-  - Файлы: `project-example/services.yaml`, `Alimentor/services.yaml` (поле `versions.codexctl`).
-- Прокидываем `CODEXCTL_VERSION` в сборку codex‑образа.
-  - Файлы: `project-example/deploy/codex/Dockerfile`, `Alimentor/deploy/codex/Dockerfile`.
-- Переводим `codexctl/examples/codex-agent/Dockerfile` на установку через `go install` вместо локальной сборки.
-  - Файл: `codexctl/examples/codex-agent/Dockerfile`.
-- Обновляем документацию о версии и доступности `codexctl` внутри агента.
-  - Файлы: `project-example/README_RU.md`, `Alimentor/README_RU.md`.
+## Что меняем (что именно добавляем)
+- В `/home/s/projects/project-example/services.yaml` и `/home/s/projects/Alimentor/services.yaml` добавляем версию `versions.codexctl` и передаём `CODEXCTL_VERSION` как build‑arg.
+- В `/home/s/projects/project-example/deploy/codex/Dockerfile` и `/home/s/projects/Alimentor/deploy/codex/Dockerfile` добавляем установку `codexctl` через `go install ...@${CODEXCTL_VERSION}`.
+- В `/home/s/projects/codexctl/examples/codex-agent/Dockerfile` переводим установку на `go install` (без локальной сборки).
+- В `/home/s/projects/project-example/README_RU.md` и `/home/s/projects/Alimentor/README_RU.md` фиксируем, что `codexctl` доступен внутри агента и как задаётся версия.
 
-## Зачем
-- Агент получает единый инструмент для всех операций (`apply`, `prompt`, `manage-env` и т.д.).
-- Версия фиксирована и воспроизводима.
-- Упрощается диагностика и повторяемость в облачных окружениях.
-
-## Ожидаемый результат
-- Внутри контейнера агента доступен `codexctl` нужной версии.
-- Сборка образов не зависит от локального кода codexctl.
+## Зачем / ожидаемый эффект
+- Агент получает единый CLI‑инструмент (`codexctl`) в любом слоте.
+- Версия фиксирована и воспроизводима (через `CODEXCTL_VERSION`).
+- Сборка образов становится проще и стабильнее.
