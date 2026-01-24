@@ -1,17 +1,17 @@
-name: "AI Plan 🧭"
+name: "AI Repair 🧯"
 
 on:
   issues:
     types: [labeled]
 
 concurrency:
-  group: ai-plan-${{ github.event.issue.number }}
+  group: ai-repair-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
-  create-ai-plan:
-    if: github.event.label.name == '[ai-plan]'
-    name: "Allocate plan slot 🧩"
+  create-ai:
+    name: "Allocate slot 🧩"
+    if: github.event.label.name == '[ai-repair]'
     runs-on: self-hosted
     timeout-minutes: 360
     environment: staging
@@ -65,9 +65,9 @@ jobs:
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
 
-  deploy-ai-plan:
-    needs: [create-ai-plan]
-    name: "Deploy AI plan env 🚀"
+  deploy-ai:
+    needs: [create-ai]
+    name: "Deploy AI repair env 🚀"
     runs-on: self-hosted
     environment: staging
     outputs:
@@ -95,7 +95,7 @@ jobs:
           cd ./.codexctl
           go build -o ../codexctl ./cmd/codexctl
 
-      - name: "Apply AI plan env via codexctl 🚀"
+      - name: "Ensure AI repair env via codexctl 🚀"
         id: ensure
         env:
           GITHUB_RUN_ID:        ${{ github.run_id }}
@@ -112,12 +112,12 @@ jobs:
           PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          SLOT="${{ needs.create-ai-plan.outputs.slot }}"
+          SLOT="${{ needs.create-ai.outputs.slot }}"
           ISSUE="${{ github.event.issue.number }}"
           MAX="${{ vars.DEV_SLOTS_MAX }}"
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --wait-timeout 1200s --output json)
+          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --wait-timeout 300s --output json)
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi
@@ -126,9 +126,9 @@ jobs:
           INFRA_READY="$(echo "$OUT" | jq -r '.infraReady // true')"
           echo "infra_ready=$INFRA_READY" >> "$GITHUB_OUTPUT"
 
-  run-codex-plan:
-    needs: [create-ai-plan, deploy-ai-plan]
-    name: "Run planning agent 🤖"
+  run-codex:
+    needs: [create-ai, deploy-ai]
+    name: "Run repair agent 🤖"
     runs-on: self-hosted
     environment: staging
     env:
@@ -157,7 +157,19 @@ jobs:
           cd ./.codexctl
           go build -o ../codexctl ./cmd/codexctl
 
-      - name: "Run planning agent inline 🤖"
+      - name: "Ensure working branch 🌿"
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+        run: |
+          set -euo pipefail
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+          git config user.name "codex-bot"
+          git config user.email "codex-bot@example.com"
+          git checkout -b "codex/issue-${ISSUE_NUMBER}" || git checkout "codex/issue-${ISSUE_NUMBER}"
+        shell: bash
+
+      - name: "Run Codex repair agent 🤖"
         env:
           GITHUB_RUN_ID:     ${{ github.run_id }}
           CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
@@ -166,26 +178,95 @@ jobs:
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          SLOT="${{ needs.create-ai-plan.outputs.slot }}"
-          NS="${{ needs.create-ai-plan.outputs.namespace }}"
+          SLOT="${{ needs.create-ai.outputs.slot }}"
+          NS="${{ needs.create-ai.outputs.namespace }}"
           ISSUE="${{ github.event.issue.number }}"
-          INFRA_READY="${{ needs.deploy-ai-plan.outputs.infra_ready }}"
-          ARGS=(prompt run --env ai --slot "${SLOT}" --kind plan_issue --lang ru)
+          ARGS=(prompt run --env ai --slot "${SLOT}" --kind repair_issue --lang ru --infra-unhealthy)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
           if [ -n "$ISSUE" ]; then
             ARGS+=(--issue "$ISSUE")
           fi
-          if [ "$INFRA_READY" = "false" ] || [ "$INFRA_READY" = "0" ]; then
-            ARGS+=(--infra-unhealthy)
-          fi
           ./codexctl "${ARGS[@]}"
 
-  cleanup-ai-plan:
-    needs: [create-ai-plan, deploy-ai-plan, run-codex-plan]
+      - name: "Auto-commit and push changes 📤"
+        env:
+          SLOT:  ${{ needs.create-ai.outputs.slot }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+
+          BRANCH="codex/issue-${ISSUE}"
+          if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+            git checkout "$BRANCH"
+          fi
+
+          rm -rf .bin || true
+
+          git add -u
+          git add docs proto services libs || true
+
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+            exit 0
+          fi
+
+          MSG="fix: repair infrastructure for issue #${ISSUE}"
+          git commit -m "$MSG"
+          git push origin "$BRANCH"
+
+      - name: "Detect PR for issue branch 🔎"
+        id: detect_pr
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          BRANCH="codex/issue-${ISSUE_NUMBER}"
+          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+
+          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+
+          PRN="$(gh pr list --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)"
+          if [ -z "${PRN}" ]; then
+            echo "warn: PR not found for branch ${BRANCH}" >&2
+            exit 0
+          fi
+
+          echo "PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
+
+      - name: "Attach PR number to slot 🏷️"
+        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
+        run: |
+          set -euo pipefail
+          ./codexctl manage-env set --env ai --slot "${SLOT}" --pr "${PR_NUMBER}"
+
+      - name: "Comment to PR with env links 🔗"
+        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        env:
+          SLOT: ${{ needs.create-ai.outputs.slot }}
+          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          ./codexctl manage-env comment --env ai --slot "${SLOT}" --lang ru > "${BODY_FILE}"
+
+          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}"
+
+  cleanup-ai:
+    needs: [create-ai, deploy-ai, run-codex]
     if: always()
-    name: "Cleanup plan env on failure 🧹"
+    name: "Cleanup on failure 🧹"
     runs-on: self-hosted
     environment: staging
     env:
@@ -214,18 +295,18 @@ jobs:
           cd ./.codexctl
           go build -o ../codexctl ./cmd/codexctl
 
-      - name: "Cleanup AI plan slot on failure (global) 🧹"
+      - name: "Cleanup AI slot on failure (global) 🧹"
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
 
-          STATUS_CREATE="${{ needs.create-ai-plan.result }}"
-          STATUS_DEPLOY="${{ needs.deploy-ai-plan.result }}"
-          STATUS_RUN="${{ needs.run-codex-plan.result }}"
+          STATUS_CREATE="${{ needs.create-ai.result }}"
+          STATUS_DEPLOY="${{ needs.deploy-ai.result }}"
+          STATUS_RUN="${{ needs.run-codex.result }}"
 
           if [ "${STATUS_CREATE}" = "success" ] && [ "${STATUS_DEPLOY}" = "success" ] && [ "${STATUS_RUN}" = "success" ]; then
-            echo "info: primary AI Plan workflow completed successfully, no cleanup required" >&2
+            echo "info: AI Repair workflow completed successfully, no cleanup required" >&2
             exit 0
           fi
 

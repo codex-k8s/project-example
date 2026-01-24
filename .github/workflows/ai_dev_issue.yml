@@ -70,6 +70,8 @@ jobs:
     name: "Deploy AI environment 🚀"
     runs-on: self-hosted
     environment: staging
+    outputs:
+      infra_ready: ${{ steps.ensure.outputs.infra_ready }}
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -94,6 +96,7 @@ jobs:
           go build -o ../codexctl ./cmd/codexctl
 
       - name: "Ensure AI env ready via codexctl 🚀"
+        id: ensure
         env:
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
@@ -114,12 +117,14 @@ jobs:
           MAX="${{ vars.DEV_SLOTS_MAX }}"
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output json)
+          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --wait-timeout 1200s --output json)
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi
           OUT="$(./codexctl "${ARGS[@]}")"
           echo "$OUT"
+          INFRA_READY="$(echo "$OUT" | jq -r '.infraReady // true')"
+          echo "infra_ready=$INFRA_READY" >> "$GITHUB_OUTPUT"
 
   run-codex:
     needs: [create-ai, deploy-ai]
@@ -176,12 +181,16 @@ jobs:
           SLOT="${{ needs.create-ai.outputs.slot }}"
           NS="${{ needs.create-ai.outputs.namespace }}"
           ISSUE="${{ github.event.issue.number }}"
+          INFRA_READY="${{ needs.deploy-ai.outputs.infra_ready }}"
           ARGS=(prompt run --env ai --slot "${SLOT}" --kind dev_issue --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
           if [ -n "$ISSUE" ]; then
             ARGS+=(--issue "$ISSUE")
+          fi
+          if [ "$INFRA_READY" = "false" ] || [ "$INFRA_READY" = "0" ]; then
+            ARGS+=(--infra-unhealthy)
           fi
           ./codexctl "${ARGS[@]}"
 

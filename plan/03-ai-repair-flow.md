@@ -51,3 +51,24 @@
 - ai‑dev/ai‑plan не падают из‑за неготовой инфраструктуры.
 - ai‑repair даёт отдельный сценарий восстановления и фиксирует проблему через PR.
 - Агент получает явный контекст о проблеме инфраструктуры.
+
+## Результат
+
+### /home/s/projects/codexctl
+- /home/s/projects/codexctl/internal/cli/ensure_helpers.go: добавлены флаги `forceApply`, `waitTimeout`, `waitSoftFail`, и признак `infraReady`; ожидание деплойментов вынесено из `applyStack` в `ensureReady` с мягким фейлом.
+- /home/s/projects/codexctl/internal/cli/manage_env.go: новые флаги `--force-apply`, `--wait-timeout`, `--wait-soft-fail`; JSON‑вывод `ensure-ready` включает `infraReady`.
+- /home/s/projects/codexctl/internal/cli/ci.go: новые флаги и `infraReady` в JSON для `ci ensure-ready`.
+- /home/s/projects/codexctl/internal/cli/prompt.go: добавлен флаг `--infra-unhealthy`, пробрасывающий `INFRA_UNHEALTHY=1` в шаблоны; зарегистрирован новый kind `repair_issue`.
+- /home/s/projects/codexctl/internal/prompt/prompt.go: добавлен `KindRepairIssue`.
+- /home/s/projects/codexctl/internal/prompt/templates/dev_issue_*.tmpl и plan_issue_*.tmpl: условная приписка при `INFRA_UNHEALTHY=1`.
+- /home/s/projects/codexctl/internal/prompt/templates/repair_issue_ru.tmpl и repair_issue_en.tmpl: новые промпты для ai‑repair.
+
+### /home/s/projects/project-example
+- /home/s/projects/project-example/.github/workflows/ai_dev_issue.yml и ai_plan_issue.yml: `ci ensure-ready` теперь с `--force-apply --wait-soft-fail --wait-timeout`, JSON‑парсинг `infraReady`, передача `--infra-unhealthy` в `prompt run` при проблемах.
+- /home/s/projects/project-example/.github/workflows/ai_repair_issue.yml: новый workflow `[ai-repair]` с коротким ожиданием, запуском `repair_issue` и стандартной цепочкой commit/push/PR‑комментариев.
+- /home/s/projects/project-example/docs/architecture_project.md: добавлены режимы ai‑dev/ai‑plan/ai‑repair.
+
+### /home/s/projects/Alimentor
+- /home/s/projects/Alimentor/.github/workflows/ai_dev_issue.yml и ai_plan_issue.yml: аналогичные изменения (`infraReady` + `--infra-unhealthy`).
+- /home/s/projects/Alimentor/.github/workflows/ai_repair_issue.yml: новый workflow `[ai-repair]`.
+- /home/s/projects/Alimentor/docs/architecture_project.md: отмечены AI‑флоу, включая `ai_repair_issue.yml`.
