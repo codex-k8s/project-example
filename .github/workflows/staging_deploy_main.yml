@@ -57,7 +57,7 @@ jobs:
           NO_PROXY:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
           CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}

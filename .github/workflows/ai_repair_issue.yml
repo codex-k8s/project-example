@@ -4,6 +4,10 @@ on:
   issues:
     types: [labeled]
 
+env:
+  AI_ALLOWED_USERS: ${{ vars.AI_ALLOWED_USERS }}
+  CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+
 concurrency:
   group: ai-repair-${{ github.event.issue.number }}
   cancel-in-progress: false
@@ -11,7 +15,10 @@ concurrency:
 jobs:
   create-ai:
     name: "Allocate slot 🧩"
-    if: github.event.label.name == '[ai-repair]'
+    if: >-
+      github.event.label.name == '[ai-repair]' &&
+      github.actor != env.CODEX_GH_USERNAME &&
+      contains(format(',{0},', env.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     timeout-minutes: 360
     environment: staging
@@ -45,7 +52,7 @@ jobs:
         env:
           GITHUB_RUN_ID:     ${{ github.run_id }}
           CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
           PATH:              /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
@@ -100,7 +107,7 @@ jobs:
         env:
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
           CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
@@ -173,7 +180,7 @@ jobs:
         env:
           GITHUB_RUN_ID:     ${{ github.run_id }}
           CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
         run: |

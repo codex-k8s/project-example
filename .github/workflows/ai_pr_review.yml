@@ -4,6 +4,10 @@ on:
   pull_request_review:
     types: [submitted]
 
+env:
+  AI_ALLOWED_USERS: ${{ vars.AI_ALLOWED_USERS }}
+  CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+
 concurrency:
   group: ai-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
@@ -11,7 +15,10 @@ concurrency:
 jobs:
   run:
     name: "Review-fix agent run 🤖"
-    if: github.event.review.state == 'changes_requested'
+    if: >-
+      github.event.review.state == 'changes_requested' &&
+      github.actor != env.CODEX_GH_USERNAME &&
+      contains(format(',{0},', env.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging
     env:
@@ -19,7 +26,7 @@ jobs:
       CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
       DATA_ROOT:            ${{ vars.DATA_ROOT }}
       GITHUB_RUN_ID:        ${{ github.run_id }}
-      CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+      CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
       OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
       CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
       POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
@@ -99,7 +106,7 @@ jobs:
         env:
           GITHUB_RUN_ID:     ${{ github.run_id }}
           CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
           PATH:              /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin

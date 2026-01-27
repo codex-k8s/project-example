@@ -4,6 +4,10 @@ on:
   issue_comment:
     types: [created]
 
+env:
+  AI_ALLOWED_USERS: ${{ vars.AI_ALLOWED_USERS }}
+  CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+
 concurrency:
   group: ai-plan-review-${{ github.event.issue.number }}
   cancel-in-progress: false
@@ -13,7 +17,9 @@ jobs:
     name: "Planning review agent run 🤖"
     if: >
       github.event.issue.pull_request == null &&
-      contains(github.event.comment.body, '[ai-plan]')
+      contains(github.event.comment.body, '[ai-plan]') &&
+      github.actor != env.CODEX_GH_USERNAME &&
+      contains(format(',{0},', env.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging
     env:
@@ -21,7 +27,7 @@ jobs:
       CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
       DATA_ROOT:            ${{ vars.DATA_ROOT }}
       GITHUB_RUN_ID:        ${{ github.run_id }}
-      CODEX_GH_USERNAME:    ${{ secrets.CODEX_GH_USERNAME }}
+      CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
       OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
       CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
       POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
@@ -122,11 +128,10 @@ jobs:
           echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
 
       - name: "Run planning review agent via codexctl 🤖"
-        if: github.actor != env.CODEX_GH_USERNAME
         env:
           GITHUB_RUN_ID:         ${{ github.run_id }}
           CODEX_GH_PAT:          ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:     ${{ secrets.CODEX_GH_USERNAME }}
+          CODEX_GH_USERNAME:     ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:        ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:      ${{ secrets.CONTEXT7_API_KEY }}
           ROOT_ISSUE_NUMBER:     ${{ steps.root_issue.outputs.ROOT_ISSUE_NUMBER }}
