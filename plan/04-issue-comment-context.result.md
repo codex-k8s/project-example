@@ -9,10 +9,10 @@
 - /home/s/projects/codexctl/internal/config/config.go: `TemplateContext` теперь хранит комментарии через `promptctx` (без привязки к services.yaml).
 - /home/s/projects/codexctl/internal/cli/issue_context.go: добавлен сбор контекста Issue/PR и запись в TemplateContext; поддержан `FOCUS_ISSUE_NUMBER`.
 - /home/s/projects/codexctl/internal/cli/prompt.go: подключён сбор контекста Issue/PR перед рендером промптов.
-- /home/s/projects/codexctl/internal/prompt/templates/dev_issue_*.tmpl, plan_issue_*.tmpl, plan_review_*.tmpl, plan_review_recreate_*.tmpl:
+- /home/s/projects/codexctl/internal/prompt/templates/dev_issue_*.tmpl, plan_issue_*.tmpl, plan_review_*.tmpl:
   - добавлены списки актуальных Issue‑комментариев (не скрытых) с ID и URL;
   - добавлены инструкции ссылаться на ID в ответах.
-- /home/s/projects/codexctl/internal/prompt/templates/review_fix_*.tmpl:
+- /home/s/projects/codexctl/internal/prompt/templates/dev_review_*.tmpl:
   - добавлен список нерешённых PR review‑комментариев с ID и URL;
   - добавлена инструкция отвечать по ID через `gh api`.
 

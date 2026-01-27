@@ -114,13 +114,27 @@ jobs:
           set -euo pipefail
           SLOT="${{ steps.card.outputs.SLOT }}"
           NS="${{ steps.card.outputs.NS }}"
+          NEW_ENV="${{ steps.card.outputs.NEW_ENV }}"
           PR="${{ github.event.pull_request.number }}"
-          ARGS=(prompt run --env ai --slot "${SLOT}" --kind review_fix --lang ru)
+          KIND="dev_review"
+          RESUME_FLAG="--resume"
+          VARS=""
+          if [ "${NEW_ENV}" = "true" ]; then
+            RESUME_FLAG=""
+            VARS="PROMPT_CONTINUATION=1,PROMPT_MODE=full"
+          fi
+          ARGS=(prompt run --env ai --slot "${SLOT}" --kind "${KIND}" --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
           if [ -n "$PR" ]; then
             ARGS+=(--pr "$PR")
+          fi
+          if [ -n "$VARS" ]; then
+            ARGS+=(--vars "$VARS")
+          fi
+          if [ -n "$RESUME_FLAG" ]; then
+            ARGS+=("$RESUME_FLAG")
           fi
           ./codexctl "${ARGS[@]}"
 

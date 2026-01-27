@@ -298,7 +298,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 
 - оставьте комментарий с текстом, содержащим `[ai-plan]`;
 - workflow `ai_plan_review.yml` найдёт корневой планирующий Issue
-  и запустит агент `plan_review` или `plan_review_recreate`.
+  и запустит агент `plan_review` (короткий или полный режим в зависимости от пересоздания окружения).
 
 ## 8. Флоу разработки с агентом
 
@@ -326,7 +326,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 2. Если ревьюер ставит состояние `changes requested`,
    сработает `ai_pr_review.yml`:
    - поднимет (или переиспользует) AI‑slot для этого PR;
-   - запустит агента `prompt run --kind review_fix --lang ru`;
+   - запустит агента `prompt run --kind dev_review --lang ru`;
    - агент применит изменения в слоте;
    - команда `codexctl pr review-apply` перенесёт изменения в PR‑ветку
      (commit + push) и добавит комментарий.

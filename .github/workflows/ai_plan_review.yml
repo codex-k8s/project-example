@@ -148,9 +148,10 @@ jobs:
 
           KIND="plan_review"
           RESUME_FLAG="--resume"
+          VARS="FOCUS_ISSUE_NUMBER=${FOCUS}"
           if [ "${NEW_ENV}" = "true" ]; then
-            KIND="plan_review_recreate"
             RESUME_FLAG=""
+            VARS="FOCUS_ISSUE_NUMBER=${FOCUS},PROMPT_CONTINUATION=1,PROMPT_MODE=full"
           fi
 
           ARGS=(prompt run --env ai --slot "${SLOT_VAL}" --kind "${KIND}" --lang ru)
@@ -161,7 +162,6 @@ jobs:
             ARGS+=(--issue "$ROOT")
           fi
 
-          VARS="FOCUS_ISSUE_NUMBER=${FOCUS}"
           ARGS+=(--vars "$VARS")
 
           if [ -n "$RESUME_FLAG" ]; then
