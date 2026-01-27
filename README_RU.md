@@ -234,6 +234,7 @@ mkdir -p ~/codex/envs ~/codex/data
 - `DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
 - `AI_ALLOWED_USERS` — список GitHub‑логинов, которым разрешено запускать AI‑воркфлоу (например, `user1,user2`), добавляется как Repository Variable.
 - `CODEX_GH_USERNAME` — GitHub‑логин бота, добавляется как Repository Variable.
+- `LETSENCRYPT_EMAIL` — email для регистрации ACME аккаунта в Let’s Encrypt (например, `admin@example-domain.ru`).
 
 ### 5.2. Repository Secrets
 
@@ -246,7 +247,6 @@ mkdir -p ~/codex/envs ~/codex/data
 - `POSTGRES_PASSWORD` — пароль БД;
 - `REDIS_PASSWORD` — пароль Redis;
 - `SECRET_KEY` — секрет Django (`python -c "import secrets; print(secrets.token_urlsafe(50))"`).
-- `LETSENCRYPT_EMAIL` — email для регистрации ACME аккаунта в Let’s Encrypt (например, `admin@example-domain.ru`).
 
 Все эти переменные используются в:
 
