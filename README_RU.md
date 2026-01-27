@@ -232,13 +232,14 @@ mkdir -p ~/codex/envs ~/codex/data
 - `DATA_ROOT` — каталог с данными БД/Redis,
   например `/home/runner/codex/data/`;
 - `DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
+- `AI_ALLOWED_USERS` — список GitHub‑логинов, которым разрешено запускать AI‑воркфлоу (например, `user1,user2`), добавляется как Repository Variable.
+- `CODEX_GH_USERNAME` — GitHub‑логин бота, добавляется как Repository Variable.
 
 ### 5.2. Repository Secrets
 
 Минимальный набор:
 
 - `CODEX_GH_PAT` — GitHub Personal Access Token бота (с правами на создание и редактирование PR/Issue и комментариев к ним. С правами на создание веток и пуш коммитов в них.);
-- `CODEX_GH_USERNAME` — имя пользователя бота;
 - `OPENAI_API_KEY` — ключ для OpenAI;
 - `CONTEXT7_API_KEY` — ключ для Context7;
 - `POSTGRES_USER` — логин БД (по умолчанию `chat`);
