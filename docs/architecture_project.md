@@ -55,7 +55,7 @@
 - `dns.configmap.yaml` — конфигурация CoreDNS для кластера;
 - `cluster-issuer.yaml` — ClusterIssuer для Let’s Encrypt;
 - `ingress-nginx.controller.yaml` — ingress‑контроллер;
-- `codex/*` — Pod Codex и ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`).
+- `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa`.
 
 ### Codex и dev‑AI слоты
 
@@ -96,6 +96,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 │   ├── ingress-nginx.controller.yaml
 │   └── codex/
 │       ├── Dockerfile
+│       ├── rbac.yaml
 │       ├── codex-deploy.yaml
 │       └── ingress-dev.yaml
 ├── services/

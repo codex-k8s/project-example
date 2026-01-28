@@ -255,6 +255,7 @@ services:
 
   - name: codex
     manifests:
+      - path: deploy/codex/rbac.yaml
       - path: deploy/codex/codex-deploy.yaml
       - path: deploy/codex/ingress-dev.yaml
     image:

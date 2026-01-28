@@ -218,7 +218,7 @@ sudo chmod +x /usr/local/bin/codexctl
   - `postgres.service.yaml`, `redis.service.yaml`;
   - `jaeger.yaml`, `dns.configmap.yaml`;
   - `cluster-issuer.yaml`, `ingress-nginx.controller.yaml`;
-  - `codex/*` — Pod Codex и ingress для dev‑слотов;
+  - `codex/*` — Pod Codex, ingress для dev‑слотов и RBAC для service account `codex-sa`;
 - `services.yaml` — конфигурация `codexctl`;
 - `.github/workflows/*.yml` — CI/CD и AI‑воркфлоу;
 - `docs/*.md` — документация по архитектуре, моделям, деплою и т.д.
