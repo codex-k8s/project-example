@@ -34,7 +34,6 @@ jobs:
       POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
       REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
       SECRET_KEY:           ${{ secrets.SECRET_KEY }}
-      PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -45,7 +44,6 @@ jobs:
 
       - name: "Install codexctl 🛠️"
         env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
           CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
         run: |
           set -euo pipefail
@@ -67,7 +65,6 @@ jobs:
           FOCUS_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEX_GH_PAT:       ${{ secrets.CODEX_GH_PAT }}
-          PATH:               /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
           FOCUS="${FOCUS_ISSUE_NUMBER}"
@@ -92,7 +89,6 @@ jobs:
         env:
           ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.ROOT_ISSUE_NUMBER }}
           DEV_SLOTS_MAX:     ${{ vars.DEV_SLOTS_MAX }}
-          PATH:              /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
 
@@ -138,7 +134,6 @@ jobs:
           CONTEXT7_API_KEY:      ${{ secrets.CONTEXT7_API_KEY }}
           ROOT_ISSUE_NUMBER:     ${{ steps.root_issue.outputs.ROOT_ISSUE_NUMBER }}
           FOCUS_ISSUE_NUMBER:    ${{ steps.root_issue.outputs.FOCUS_ISSUE_NUMBER }}
-          PATH:                  /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
 

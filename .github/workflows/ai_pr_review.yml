@@ -33,7 +33,6 @@ jobs:
       POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
       REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
       SECRET_KEY:           ${{ secrets.SECRET_KEY }}
-      PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - name: "Checkout PR head 📥"
         uses: actions/checkout@v4
@@ -44,7 +43,6 @@ jobs:
 
       - name: "Install codexctl 🛠️"
         env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
           CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
         run: |
           set -euo pipefail
@@ -65,7 +63,6 @@ jobs:
         env:
           PR:            ${{ github.event.pull_request.number }}
           DEV_SLOTS_MAX: ${{ vars.DEV_SLOTS_MAX }}
-          PATH:          /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
 
@@ -109,7 +106,6 @@ jobs:
           CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
-          PATH:              /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
           SLOT="${{ steps.card.outputs.SLOT }}"
@@ -144,7 +140,6 @@ jobs:
           PR_NUMBER:          ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEX_GH_PAT:       ${{ secrets.CODEX_GH_PAT }}
-          PATH:               /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
           codexctl pr review-apply \

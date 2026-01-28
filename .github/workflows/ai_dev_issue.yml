@@ -33,7 +33,6 @@ jobs:
 
       - name: "Install codexctl 🛠️"
         env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
           CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
         run: |
           set -euo pipefail
@@ -55,7 +54,6 @@ jobs:
           GITHUB_RUN_ID:     ${{ github.run_id }}
           CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
           CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
-          PATH:              /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
           ENV_NAME="ai"
@@ -102,7 +100,6 @@ jobs:
           POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
           SECRET_KEY:           ${{ secrets.SECRET_KEY }}
-          PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
           SLOT="${{ needs.create-ai.outputs.slot }}"
@@ -127,7 +124,6 @@ jobs:
     env:
       CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
       CODEX_GH_PAT:   ${{ secrets.CODEX_GH_PAT }}
-      PATH:           /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - name: "Checkout default branch 📥"
         uses: actions/checkout@v4
@@ -253,7 +249,6 @@ jobs:
     env:
       CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
       DATA_ROOT: ${{ vars.DATA_ROOT }}
-      PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
     steps:
       - name: "Checkout minimal 📥"
         uses: actions/checkout@v4
