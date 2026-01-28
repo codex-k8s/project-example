@@ -11,11 +11,11 @@
         <form @submit.prevent="onRegister">
           <label>
             Ник:
-            <input v-model="nickname" required maxlength="64" />
+            <input v-model="nickname" type="text" name="nickname" autocomplete="username" required maxlength="64" />
           </label>
           <label>
             Пароль:
-            <input v-model="password" type="password" required />
+            <input v-model="password" type="password" name="password" autocomplete="new-password" required />
           </label>
           <button type="submit">Зарегистрироваться</button>
         </form>
@@ -24,11 +24,11 @@
         <form @submit.prevent="onLogin">
           <label>
             Ник:
-            <input v-model="nickname" required maxlength="64" />
+            <input v-model="nickname" type="text" name="nickname" autocomplete="username" required maxlength="64" />
           </label>
           <label>
             Пароль:
-            <input v-model="password" type="password" required />
+            <input v-model="password" type="password" name="password" autocomplete="current-password" required />
           </label>
           <button type="submit">Войти</button>
         </form>
@@ -44,13 +44,13 @@
           <div
             v-for="msg in store.messages"
             :key="msg.id"
-            class="message"
+            :class="['message', { 'message--own': msg.userId === store.userId }]"
           >
             <div class="meta">
               <span class="author">{{ msg.nickname }}</span>
               <span class="time">{{ formatTime(msg.createdAt) }}</span>
             </div>
-            <div class="text">{{ msg.text }}</div>
+            <div class="bubble">{{ msg.text }}</div>
           </div>
           <p v-if="store.messages.length === 0" class="empty">
             Сообщений пока нет — станьте первым!
@@ -99,6 +99,8 @@ function formatTime(value) {
 
 async function onRegister() {
   await store.register(nickname.value, password.value);
+  await store.fetchMessages();
+  scrollToBottom();
 }
 
 async function onLogin() {
@@ -225,10 +227,20 @@ button:hover {
   height: 320px;
   overflow-y: auto;
   background-color: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .message {
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.message--own {
+  align-items: flex-end;
 }
 
 .message .meta {
@@ -242,8 +254,20 @@ button:hover {
   font-weight: 600;
 }
 
-.message .text {
+.message .bubble {
   font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  max-width: 75%;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.message--own .bubble {
+  background-color: #e0f2fe;
+  border-color: #bae6fd;
 }
 
 .empty {
@@ -255,4 +279,3 @@ button:hover {
   color: #b91c1c;
 }
 </style>
-

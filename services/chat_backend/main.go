@@ -222,10 +222,25 @@ func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":       newID,
-		"nickname": req.Nickname,
-	})
+	token, err := generateToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to generate session token")
+		return
+	}
+
+	sessionKey := "session:" + token
+	if err := s.redis.Set(ctx, sessionKey, newID, 24*time.Hour).Err(); err != nil {
+		log.Printf("failed to store session: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to store session")
+		return
+	}
+
+	resp := loginResponse{
+		Token:    token,
+		UserID:   newID,
+		Nickname: req.Nickname,
+	}
+	writeJSON(w, http.StatusCreated, resp)
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
