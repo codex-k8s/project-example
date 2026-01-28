@@ -40,6 +40,8 @@ jobs:
           export GONOSUMDB=github.com/codex-k8s/*
           export GOPROXY=direct
           go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
+          INSTALLED_VER="$(go list -m -f '{{.Version}}' github.com/codex-k8s/codexctl@${VERSION})"
+          echo "codexctl module version: ${INSTALLED_VER}"
           codexctl --help >/dev/null
       - name: "Cleanup for PR closed 🧹"
         if: github.event_name == 'pull_request'
