@@ -99,7 +99,6 @@ function formatTime(value) {
 
 async function onRegister() {
   await store.register(nickname.value, password.value);
-  await store.login(nickname.value, password.value);
   await store.fetchMessages();
   scrollToBottom();
 }

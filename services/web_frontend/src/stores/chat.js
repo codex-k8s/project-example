@@ -59,6 +59,10 @@ export const useChatStore = defineStore("chat", {
         this.error = data.error || "Registration failed";
         throw new Error(this.error);
       }
+      this.token = data.token;
+      this.userId = data.userId;
+      this.nickname = data.nickname;
+      saveToStorage(this.$state);
       return data;
     },
     async login(nickname, password) {
@@ -133,4 +137,3 @@ export const useChatStore = defineStore("chat", {
     }
   }
 });
-
