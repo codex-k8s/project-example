@@ -52,11 +52,17 @@ jobs:
           FOCUS="${FOCUS_ISSUE_NUMBER}"
           REPO="${GITHUB_REPOSITORY}"
 
-          OUT="$(codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}" --output json)"
+          OUT="$(codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}" --output kv)"
           echo "$OUT"
 
-          ROOT="$(echo "$OUT" | jq -r '.root')"
-          FOCUS_RESOLVED="$(echo "$OUT" | jq -r '.focus')"
+          ROOT=""
+          FOCUS_RESOLVED=""
+          while IFS='=' read -r key value; do
+            case "$key" in
+              root) ROOT="$value" ;;
+              focus) FOCUS_RESOLVED="$value" ;;
+            esac
+          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
 
           if [ -z "${ROOT}" ] || [ "${ROOT}" = "0" ]; then
             echo "error: unable to determine root planning issue for focus issue ${FOCUS}" >&2
@@ -80,18 +86,25 @@ jobs:
           echo "info: ensuring AI planning environment ready via codexctl (ensure-ready)" >&2
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --issue "${ROOT}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output json)
+          ARGS=(ci ensure-ready --env ai --issue "${ROOT}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output kv)
           if [ -n "${MAX}" ]; then
             ARGS+=(--max "${MAX}")
           fi
           OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
 
-          JSON_LINE="$(printf '%s\n' "$OUT" | tail -n1)"
-          SLOT="$(echo "$JSON_LINE" | jq -r '.slot')"
-          NS="$(echo "$JSON_LINE"   | jq -r '.namespace')"
-          CREATED="$(echo "$JSON_LINE" | jq -r '.created // false')"
-          RECREATED="$(echo "$JSON_LINE" | jq -r '.recreated // false')"
+          SLOT=""
+          NS=""
+          CREATED="false"
+          RECREATED="false"
+          while IFS='=' read -r key value; do
+            case "$key" in
+              slot) SLOT="$value" ;;
+              namespace) NS="$value" ;;
+              created) CREATED="$value" ;;
+              recreated) RECREATED="$value" ;;
+            esac
+          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
 
           NEW_ENV="false"
           if [ "${CREATED}" = "true" ] || [ "${RECREATED}" = "true" ]; then
