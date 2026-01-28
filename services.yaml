@@ -62,6 +62,7 @@ versions:
   codex: "0.1.0"
   codexctl: "latest"
   busybox: "1.37.0"
+  http-echo: "0.2.3"
   postgres-image: "16-bookworm"
   redis-image: "7-bookworm"
   jaeger: "2.11.0"
@@ -171,6 +172,55 @@ infrastructure:
     manifests:
       - path: deploy/cluster-issuer.yaml
 
+  - name: echo-probe
+    manifests:
+      - path: deploy/echo-probe.yaml
+    hooks:
+      afterApply:
+        - name: wait-echo-probe
+          when: '{{ eq .Env "staging" }}'
+          run: |
+            set -euo pipefail
+            NS="{{ .Namespace }}"
+            if [ -z "${NS}" ]; then
+              NS="{{ .Project }}-staging"
+            fi
+            echo "Waiting for echo-probe in namespace ${NS}..." >&2
+            kubectl -n "${NS}" rollout status deploy/echo-probe --timeout=120s
+        - name: check-echo-probe-http
+          when: '{{ eq .Env "staging" }}'
+          run: |
+            set -euo pipefail
+            HOST="{{ index .BaseDomain "staging" }}"
+            if ! nc -z 127.0.0.1 80; then
+              echo "error: port 80 is not reachable on localhost" >&2
+              exit 1
+            fi
+            if ! nc -z 127.0.0.1 443; then
+              echo "error: port 443 is not reachable on localhost" >&2
+              exit 1
+            fi
+            ok=0
+            for i in {1..30}; do
+              if curl -sSL --max-time 5 -H "Host: ${HOST}" http://127.0.0.1/_probe | grep -q "ok"; then
+                ok=1; break
+              fi
+              sleep 2
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "error: echo-probe HTTP check failed" >&2
+              exit 1
+            fi
+        - name: cleanup-echo-probe
+          when: '{{ eq .Env "staging" }}'
+          run: |
+            set -euo pipefail
+            NS="{{ .Namespace }}"
+            if [ -z "${NS}" ]; then
+              NS="{{ .Project }}-staging"
+            fi
+            kubectl -n "${NS}" delete deploy/echo-probe svc/echo-probe ingress/echo-probe --ignore-not-found || true
+
   - name: data-services
     manifests:
       - path: deploy/postgres.service.yaml
@@ -270,6 +320,9 @@ services:
             mountPath: "/workspace"
     hooks:
       afterApply:
+        - name: check-dev-host-ports
+          when: '{{ eq .Env "ai" }}'
+          use: codex.check-dev-host-ports
         - name: reuse-dev-tls-secret
           when: '{{ eq .Env "ai" }}'
           use: codex.reuse-dev-tls-secret

@@ -1,0 +1,58 @@
+{{- if eq .Env "staging" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-probe
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo-probe
+  template:
+    metadata:
+      labels:
+        app: echo-probe
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo:{{ index .Versions "http-echo" }}
+          args: ["-text=ok","-listen=:80"]
+          ports:
+            - containerPort: 80
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-probe
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: echo-probe
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: echo-probe
+  namespace: {{ .Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: {{ index .BaseDomain "staging" }}
+      http:
+        paths:
+          - path: /_probe
+            pathType: Prefix
+            backend:
+              service:
+                name: echo-probe
+                port:
+                  number: 80
+{{- end }}

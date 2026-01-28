@@ -54,6 +54,7 @@
 - `jaeger.yaml` — in‑memory Jaeger (ConfigMap + Deployment + Service);
 - `dns.configmap.yaml` — конфигурация CoreDNS для кластера;
 - `cluster-issuer.yaml` — ClusterIssuer для Let’s Encrypt;
+- `echo-probe.yaml` — временный echo‑сервис для проверки доступности домена перед выпуском сертификата;
 - `ingress-nginx.controller.yaml` — ingress‑контроллер;
 - `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa`.
 
@@ -93,6 +94,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 │   ├── jaeger.yaml
 │   ├── dns.configmap.yaml
 │   ├── cluster-issuer.yaml
+│   ├── echo-probe.yaml
 │   ├── ingress-nginx.controller.yaml
 │   └── codex/
 │       ├── Dockerfile

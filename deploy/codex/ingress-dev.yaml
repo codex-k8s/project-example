@@ -5,6 +5,7 @@ metadata:
   name: ingress-dev-{{ .Slot }}
   namespace: {{ .Namespace }}
   annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
@@ -52,4 +53,3 @@ spec:
                 port:
                   number: 80
 {{- end }}
-
