@@ -25,26 +25,6 @@ jobs:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Install codexctl 🛠️"
-        env:
-          CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
-        run: |
-          set -euo pipefail
-          VERSION="${CODEXCTL_VERSION:-latest}"
-          export GOBIN="${HOME}/.local/bin"
-          mkdir -p "$GOBIN"
-          GOPATH_BIN="$(go env GOPATH)/bin"
-          echo "$GOBIN" >> "$GITHUB_PATH"
-          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
-          echo "PATH=$GOBIN:$GOPATH_BIN:$PATH" >> "$GITHUB_ENV"
-          export PATH="$GOBIN:$GOPATH_BIN:$PATH"
-          export GOPRIVATE=github.com/codex-k8s/*
-          export GONOSUMDB=github.com/codex-k8s/*
-          export GOPROXY=direct
-          go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
-          INSTALLED_VER="$(go list -m -f '{{.Version}}' github.com/codex-k8s/codexctl@${VERSION})"
-          echo "codexctl module version: ${INSTALLED_VER}"
-          codexctl --help >/dev/null
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
           REGISTRY_HOST: localhost:32000

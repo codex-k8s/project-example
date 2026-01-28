@@ -30,29 +30,6 @@ jobs:
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Install codexctl 🛠️"
-        env:
-          CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
-        run: |
-          set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
-          codexctl --help >/dev/null
-          VERSION="${CODEXCTL_VERSION:-latest}"
-          export GOBIN="${HOME}/.local/bin"
-          mkdir -p "$GOBIN"
-          GOPATH_BIN="$(go env GOPATH)/bin"
-          echo "$GOBIN" >> "$GITHUB_PATH"
-          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
-          echo "PATH=$GOBIN:$GOPATH_BIN:$PATH" >> "$GITHUB_ENV"
-          export PATH="$GOBIN:$GOPATH_BIN:$PATH"
-          export GOPRIVATE=github.com/codex-k8s/*
-          export GONOSUMDB=github.com/codex-k8s/*
-          export GOPROXY=direct
-          go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
-          INSTALLED_VER="$(go list -m -f '{{.Version}}' github.com/codex-k8s/codexctl@${VERSION})"
-          echo "codexctl module version: ${INSTALLED_VER}"
-          codexctl --help >/dev/null
       - name: "Allocate slot via codexctl 🧩"
         id: alloc
         env:
@@ -61,8 +38,6 @@ jobs:
           CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           ENV_NAME="ai"
           ISSUE="${{ github.event.issue.number }}"
@@ -110,8 +85,6 @@ jobs:
           SECRET_KEY:           ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           SLOT="${{ needs.create-ai.outputs.slot }}"
           ISSUE="${{ github.event.issue.number }}"
@@ -146,8 +119,6 @@ jobs:
           SLOT: ${{ needs.create-ai.outputs.slot }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           ISSUE_NUMBER="${{ github.event.issue.number }}"
           cd "${CODE_ROOT_BASE}/${SLOT}/src"
@@ -165,8 +136,6 @@ jobs:
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           SLOT="${{ needs.create-ai.outputs.slot }}"
           NS="${{ needs.create-ai.outputs.namespace }}"
@@ -190,8 +159,6 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           cd "${CODE_ROOT_BASE}/${SLOT}/src"
 
@@ -223,8 +190,6 @@ jobs:
           CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           BRANCH="codex/issue-${ISSUE_NUMBER}"
           cd "${CODE_ROOT_BASE}/${SLOT}/src"
@@ -246,8 +211,6 @@ jobs:
           PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           codexctl manage-env set --env ai --slot "${SLOT}" --pr "${PR_NUMBER}"
 
@@ -260,8 +223,6 @@ jobs:
           CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
           BODY_FILE="$(mktemp)"
           codexctl manage-env comment --env ai --slot "${SLOT}" --lang ru > "${BODY_FILE}"
@@ -289,8 +250,6 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          echo "debug: PATH=$PATH"
-          command -v codexctl || true
           codexctl --help >/dev/null
 
           STATUS_CREATE="${{ needs.create-ai.result }}"

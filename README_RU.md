@@ -185,6 +185,19 @@ sudo apt-get update
 sudo apt-get install -y git rsync gh
 ```
 
+Установка последней версии `codexctl`:
+
+```bash
+go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+```
+
+Добавить Go bin в PATH (чтобы `codexctl` был доступен в сессии):
+
+```bash
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
+source ~/.bashrc
+```
+
 ## 2. Структура проекта
 
 Основные директории:
