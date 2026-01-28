@@ -37,6 +37,20 @@ jobs:
             gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
           fi
 
+      - name: "Close linked Issue after merge ✅"
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        env:
+          REPO: ${{ github.repository }}
+          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          if [[ "$BRANCH" =~ ^codex/issue-([0-9]+)$ ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+            gh issue close "${ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
+          fi
+
       - name: "Cleanup for Issue closed 🧹"
         if: github.event_name == 'issues'
         env:
