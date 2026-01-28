@@ -96,6 +96,7 @@ const messageText = ref("");
 const messagesRef = ref(null);
 
 let intervalId = null;
+let eventsSource = null;
 
 function formatTime(value) {
   if (!value) {
@@ -121,6 +122,7 @@ async function onLogin() {
 
 function onLogout() {
   store.logout();
+  stopEvents();
 }
 
 async function onSend() {
@@ -137,6 +139,33 @@ async function onDeleteMessage(messageId) {
   await store.deleteMessage(messageId);
 }
 
+function startEvents() {
+  if (eventsSource) {
+    return;
+  }
+  eventsSource = new EventSource("/api/events");
+  eventsSource.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload.type === "message_deleted") {
+        store.removeMessage(payload.id);
+      }
+    } catch {
+      // ignore malformed events
+    }
+  };
+  eventsSource.onerror = () => {
+    // keep connection open; browser will retry automatically
+  };
+}
+
+function stopEvents() {
+  if (eventsSource) {
+    eventsSource.close();
+    eventsSource = null;
+  }
+}
+
 function scrollToBottom() {
   if (messagesRef.value) {
     const el = messagesRef.value;
@@ -148,6 +177,7 @@ function scrollToBottom() {
 
 onMounted(async () => {
   store.initFromStorage();
+  startEvents();
   if (store.token) {
     await store.fetchMessages();
     scrollToBottom();
@@ -166,6 +196,7 @@ onUnmounted(() => {
   if (intervalId) {
     window.clearInterval(intervalId);
   }
+  stopEvents();
 });
 </script>
 
@@ -209,15 +240,15 @@ input {
 
 button {
   padding: 6px 10px;
-  border-radius: 4px;
-  border: none;
-  background-color: #2563eb;
-  color: white;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1f2937;
   cursor: pointer;
 }
 
 button:hover {
-  background-color: #1d4ed8;
+  background-color: #eef2f7;
 }
 
 .chat {
@@ -293,15 +324,15 @@ button:hover {
 
 .delete-btn {
   padding: 2px 6px;
-  border-radius: 4px;
-  border: none;
-  background-color: #dc2626;
-  color: white;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  color: #b91c1c;
   cursor: pointer;
 }
 
 .delete-btn:hover {
-  background-color: #b91c1c;
+  background-color: #fee2e2;
 }
 
 .empty {

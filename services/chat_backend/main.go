@@ -52,6 +52,13 @@ type messageResponse struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type eventMessage struct {
+	Type string `json:"type"`
+	ID   int64  `json:"id"`
+}
+
+const eventsChannel = "chat:events"
+
 func main() {
 	ctx := context.Background()
 
@@ -81,6 +88,7 @@ func main() {
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/api/messages", s.handleMessages)
 	mux.HandleFunc("/api/messages/", s.handleMessageByID)
+	mux.HandleFunc("/api/events", s.handleEvents)
 
 	port := getenv("HTTP_PORT", "8080")
 	addr := ":" + port
@@ -357,10 +365,51 @@ func (s *server) handleMessageByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.publishEvent(ctx, eventMessage{Type: "message_deleted", ID: messageID}); err != nil {
+		log.Printf("failed to publish delete event: %v", err)
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"id":     messageID,
 		"status": "deleted",
 	})
+}
+
+func (s *server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming is not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	ctx := r.Context()
+	pubsub := s.redis.Subscribe(ctx, eventsChannel)
+	defer func() {
+		_ = pubsub.Close()
+	}()
+
+	ch := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+			flusher.Flush()
+		}
+	}
 }
 
 func (s *server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
@@ -484,6 +533,14 @@ func (s *server) handleListMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, messages)
+}
+
+func (s *server) publishEvent(ctx context.Context, event eventMessage) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal event: %w", err)
+	}
+	return s.redis.Publish(ctx, eventsChannel, payload).Err()
 }
 
 func (s *server) authenticate(r *http.Request) (int64, string, error) {

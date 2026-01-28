@@ -152,6 +152,9 @@ export const useChatStore = defineStore("chat", {
         this.error = data.error || "Failed to delete message";
         throw new Error(this.error);
       }
+      this.removeMessage(messageId);
+    },
+    removeMessage(messageId) {
       this.messages = this.messages.filter((msg) => msg.id !== messageId);
     }
   }
