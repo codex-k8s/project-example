@@ -45,9 +45,18 @@ jobs:
       - name: "Install codexctl 🛠️"
         env:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+          CODEXCTL_VERSION: ${{ vars.CODEXCTL_VERSION }}
         run: |
           set -euo pipefail
-          go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+          VERSION="${CODEXCTL_VERSION:-latest}"
+          GOBIN="${HOME}/.local/bin"
+          mkdir -p "$GOBIN"
+          echo "$GOBIN" >> "$GITHUB_PATH"
+          export PATH="$GOBIN:$PATH"
+          export GOPRIVATE=github.com/codex-k8s/*
+          export GONOSUMDB=github.com/codex-k8s/*
+          export GOPROXY=direct
+          go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
           codexctl version
       - name: "Resolve slot and namespace for PR 📇"
         id: card

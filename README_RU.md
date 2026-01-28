@@ -273,6 +273,7 @@ mkdir -p ~/codex/envs ~/codex/data
 - `DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
 - `AI_ALLOWED_USERS` — список GitHub‑логинов, которым разрешено запускать AI‑воркфлоу (например, `user1,user2`), добавляется как Repository Variable.
 - `CODEX_GH_USERNAME` — GitHub‑логин бота, добавляется как Repository Variable.
+- `CODEXCTL_VERSION` — версия `codexctl` для установки в воркфлоу (например, `v0.3.1`), если не задана — используется `latest`.
 - `LETSENCRYPT_EMAIL` — email для регистрации ACME аккаунта в Let’s Encrypt (например, `admin@example-domain.ru`).
 
 ### 5.2. Repository Secrets
