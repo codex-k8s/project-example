@@ -56,9 +56,9 @@ state:
   configmapPrefix: codex-env-
 
 versions:
-  django-backend: "0.1.0"
-  chat-backend: "0.1.0"
-  web-frontend: "0.1.0"
+  django-backend: "0.1.1"
+  chat-backend: "0.1.2"
+  web-frontend: "0.1.2"
   codex: "0.1.0"
   codexctl: "latest"
   busybox: "1.37.0"

@@ -52,6 +52,13 @@ type messageResponse struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type eventMessage struct {
+	Type string `json:"type"`
+	ID   int64  `json:"id"`
+}
+
+const eventsChannel = "chat:events"
+
 func main() {
 	ctx := context.Background()
 
@@ -80,6 +87,8 @@ func main() {
 	mux.HandleFunc("/api/register", s.handleRegister)
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/api/messages", s.handleMessages)
+	mux.HandleFunc("/api/messages/", s.handleMessageByID)
+	mux.HandleFunc("/api/events", s.handleEvents)
 
 	port := getenv("HTTP_PORT", "8080")
 	addr := ":" + port
@@ -312,6 +321,97 @@ func (s *server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *server) handleMessageByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/messages/")
+	if idStr == "" || strings.Contains(idStr, "/") {
+		writeError(w, http.StatusBadRequest, "invalid message id")
+		return
+	}
+
+	messageID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || messageID <= 0 {
+		writeError(w, http.StatusBadRequest, "invalid message id")
+		return
+	}
+
+	userID, _, err := s.authenticate(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	tag, err := s.db.Exec(
+		ctx,
+		"UPDATE chat_message SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+		messageID,
+		userID,
+	)
+	if err != nil {
+		log.Printf("failed to delete message: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete message")
+		return
+	}
+
+	if tag.RowsAffected() == 0 {
+		writeError(w, http.StatusNotFound, "message not found")
+		return
+	}
+
+	if err := s.publishEvent(ctx, eventMessage{Type: "message_deleted", ID: messageID}); err != nil {
+		log.Printf("failed to publish delete event: %v", err)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":     messageID,
+		"status": "deleted",
+	})
+}
+
+func (s *server) handleEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming is not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	ctx := r.Context()
+	pubsub := s.redis.Subscribe(ctx, eventsChannel)
+	defer func() {
+		_ = pubsub.Close()
+	}()
+
+	ch := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
+			flusher.Flush()
+		}
+	}
+}
+
 func (s *server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	userID, nickname, err := s.authenticate(r)
 	if err != nil {
@@ -402,7 +502,7 @@ func (s *server) handleListMessages(w http.ResponseWriter, r *http.Request) {
 		`SELECT m.id, u.id, u.nickname, m.text, m.created_at
          FROM chat_message m
          JOIN chat_user u ON m.user_id = u.id
-         WHERE m.id > $1
+         WHERE m.id > $1 AND m.deleted_at IS NULL
          ORDER BY m.id ASC
          LIMIT $2`,
 		afterID,
@@ -433,6 +533,14 @@ func (s *server) handleListMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, messages)
+}
+
+func (s *server) publishEvent(ctx context.Context, event eventMessage) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal event: %w", err)
+	}
+	return s.redis.Publish(ctx, eventsChannel, payload).Err()
 }
 
 func (s *server) authenticate(r *http.Request) (int64, string, error) {

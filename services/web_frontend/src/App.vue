@@ -17,7 +17,7 @@
             Пароль:
             <input v-model="password" type="password" name="password" autocomplete="new-password" required />
           </label>
-          <button type="submit">Зарегистрироваться</button>
+          <button type="submit">📝 Зарегистрироваться</button>
         </form>
 
         <h2>Вход</h2>
@@ -30,14 +30,14 @@
             Пароль:
             <input v-model="password" type="password" name="password" autocomplete="current-password" required />
           </label>
-          <button type="submit">Войти</button>
+          <button type="submit">🔑 Войти</button>
         </form>
       </section>
 
       <section v-else class="chat">
         <div class="chat-header">
           <h2>Общий чат</h2>
-          <button type="button" @click="onLogout">Выйти</button>
+          <button type="button" @click="onLogout">🚪 Выйти</button>
         </div>
 
         <div class="messages" ref="messagesRef">
@@ -46,9 +46,20 @@
             :key="msg.id"
             :class="['message', { 'message--own': msg.userId === store.userId }]"
           >
-            <div class="meta">
-              <span class="author">{{ msg.nickname }}</span>
-              <span class="time">{{ formatTime(msg.createdAt) }}</span>
+            <div class="meta-row">
+              <div class="meta">
+                <span class="author">{{ msg.nickname }}</span>
+                <span class="time">{{ formatTime(msg.createdAt) }}</span>
+              </div>
+              <button
+                v-if="msg.userId === store.userId"
+                type="button"
+                class="delete-btn"
+                title="Удалить сообщение"
+                @click="onDeleteMessage(msg.id)"
+              >
+                🗑️
+              </button>
             </div>
             <div class="bubble">{{ msg.text }}</div>
           </div>
@@ -63,7 +74,7 @@
             placeholder="Введите сообщение..."
             maxlength="2000"
           />
-          <button type="submit">Отправить</button>
+          <button type="submit">📨 Отправить</button>
         </form>
       </section>
 
@@ -85,6 +96,7 @@ const messageText = ref("");
 const messagesRef = ref(null);
 
 let intervalId = null;
+let eventsSource = null;
 
 function formatTime(value) {
   if (!value) {
@@ -110,6 +122,7 @@ async function onLogin() {
 
 function onLogout() {
   store.logout();
+  stopEvents();
 }
 
 async function onSend() {
@@ -120,6 +133,37 @@ async function onSend() {
   await store.sendMessage(text);
   messageText.value = "";
   scrollToBottom();
+}
+
+async function onDeleteMessage(messageId) {
+  await store.deleteMessage(messageId);
+}
+
+function startEvents() {
+  if (eventsSource) {
+    return;
+  }
+  eventsSource = new EventSource("/api/events");
+  eventsSource.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      if (payload.type === "message_deleted") {
+        store.removeMessage(payload.id);
+      }
+    } catch {
+      // ignore malformed events
+    }
+  };
+  eventsSource.onerror = () => {
+    // keep connection open; browser will retry automatically
+  };
+}
+
+function stopEvents() {
+  if (eventsSource) {
+    eventsSource.close();
+    eventsSource = null;
+  }
 }
 
 function scrollToBottom() {
@@ -133,6 +177,7 @@ function scrollToBottom() {
 
 onMounted(async () => {
   store.initFromStorage();
+  startEvents();
   if (store.token) {
     await store.fetchMessages();
     scrollToBottom();
@@ -151,6 +196,7 @@ onUnmounted(() => {
   if (intervalId) {
     window.clearInterval(intervalId);
   }
+  stopEvents();
 });
 </script>
 
@@ -194,15 +240,15 @@ input {
 
 button {
   padding: 6px 10px;
-  border-radius: 4px;
-  border: none;
-  background-color: #2563eb;
-  color: white;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #f8fafc;
+  color: #1f2937;
   cursor: pointer;
 }
 
 button:hover {
-  background-color: #1d4ed8;
+  background-color: #eef2f7;
 }
 
 .chat {
@@ -250,6 +296,12 @@ button:hover {
   gap: 8px;
 }
 
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .message .author {
   font-weight: 600;
 }
@@ -268,6 +320,19 @@ button:hover {
 .message--own .bubble {
   background-color: #e0f2fe;
   border-color: #bae6fd;
+}
+
+.delete-btn {
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background-color: #fee2e2;
 }
 
 .empty {
