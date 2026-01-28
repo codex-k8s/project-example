@@ -406,3 +406,68 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 вы можете форкнуть его, адаптировать `services.yaml`,
 Kubernetes‑манифесты и документацию под свои сервисы и домены
 и получить готовый skeleton для облачной разработки с Codex‑агентом.
+
+## 11. Безопасность
+
+### Базовая настройка брандмауэра
+
+Рекомендуется включить и настроить брандмауэр (firewall) на VPS,
+ограничив доступ к необходимым портам (например, 80, 443 для ingress‑контроллера и 22 для SSH).
+
+```bash
+# проверить статус
+sudo ufw status
+
+# разрешить SSH (ОБЯЗАТЕЛЬНО до enable, если ты по ssh)
+sudo ufw allow 22/tcp
+
+# разрешить HTTP / HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# запретить всё входящее по умолчанию
+sudo ufw default deny incoming
+
+# разрешить всё исходящее
+sudo ufw default allow outgoing
+
+# включить ufw
+sudo ufw enable
+
+# проверить статус
+sudo ufw status verbose
+```
+
+Ожидаемый вывод:
+
+```plaintext
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere                  
+80/tcp                     ALLOW IN    Anywhere                  
+443/tcp                    ALLOW IN    Anywhere                  
+22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+80/tcp (v6)                ALLOW IN    Anywhere (v6)             
+443/tcp (v6)               ALLOW IN    Anywhere (v6)  
+```
+
+Если у вас статический IP‑адрес, рекомендуется ограничить доступ по SSH
+только с этого IP‑адреса.
+
+### Работа агента
+
+По умолчанию агент запускается с повышенными привилегиями, если вы используете [config_default.toml](https://github.com/codex-k8s/codexctl/blob/29561461741b8bbad654e3bf34645619a3d6f4bb/internal/prompt/templates/config_default.toml)
+из репозитория `codexctl`. Это позволяет агенту выполнять широкий спектр задач,
+но может представлять риск безопасности.
+
+Также агент в процессе работы имеет доступ к Kubernetes‑кластеру в соответствии
+с политиками RBAC, настроенными в `deploy/codex/rbac.yaml`.
+
+Внимательно следите за тем, какие задачи вы поручаете агенту,
+особенно если репозиторий открыт для внешних контрибьюторов.
+
+### Запуск workflow только для доверенных пользователей
+
+В переменную `AI_ALLOWED_USERS` рекомендуется добавить список доверенных
+GitHub‑логинов, которым разрешено запускать AI‑воркфлоу. Это поможет предотвратить
+неавторизованный запуск агентов и потенциальные риски безопасности в этом процессе.
