@@ -43,16 +43,8 @@ jobs:
           export GOPRIVATE=github.com/codex-k8s/*
           export GONOSUMDB=github.com/codex-k8s/*
           export GOPROXY=direct
-          echo "debug: PATH=$PATH"
-          echo "debug: HOME=$HOME"
-          echo "debug: GOBIN=$GOBIN"
-          echo "debug: GOPATH_BIN=$GOPATH_BIN"
-          command -v go || true
-          go env GOPATH GOBIN GOMODCACHE || true
-          ls -la "$GOBIN" || true
-          ls -la "$GOPATH_BIN" || true
           go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
-          codexctl version
+          codexctl --help >/dev/null
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
           REGISTRY_HOST: localhost:32000

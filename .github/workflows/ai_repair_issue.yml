@@ -48,7 +48,7 @@ jobs:
           export GONOSUMDB=github.com/codex-k8s/*
           export GOPROXY=direct
           go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
-          codexctl version
+          codexctl --help >/dev/null
       - name: "Allocate slot via codexctl 🧩"
         id: alloc
         env:
