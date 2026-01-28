@@ -34,22 +34,24 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${CODEXCTL_VERSION:-latest}"
-          GOBIN="${HOME}/.local/bin"
+          export GOBIN="${HOME}/.local/bin"
           mkdir -p "$GOBIN"
+          GOPATH_BIN="$(go env GOPATH)/bin"
           echo "$GOBIN" >> "$GITHUB_PATH"
-          export PATH="$GOBIN:$PATH"
+          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          export PATH="$GOBIN:$GOPATH_BIN:$PATH"
           export GOPRIVATE=github.com/codex-k8s/*
           export GONOSUMDB=github.com/codex-k8s/*
           export GOPROXY=direct
           echo "debug: PATH=$PATH"
           echo "debug: HOME=$HOME"
           echo "debug: GOBIN=$GOBIN"
+          echo "debug: GOPATH_BIN=$GOPATH_BIN"
           command -v go || true
           go env GOPATH GOBIN GOMODCACHE || true
           ls -la "$GOBIN" || true
+          ls -la "$GOPATH_BIN" || true
           go install github.com/codex-k8s/codexctl/cmd/codexctl@${VERSION}
-          ls -la "$GOBIN" || true
-          command -v codexctl || true
           codexctl version
       - name: "Prepare images via codexctl 🪞🏗️"
         env:

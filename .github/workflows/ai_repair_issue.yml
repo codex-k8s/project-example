@@ -38,10 +38,12 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${CODEXCTL_VERSION:-latest}"
-          GOBIN="${HOME}/.local/bin"
+          export GOBIN="${HOME}/.local/bin"
           mkdir -p "$GOBIN"
+          GOPATH_BIN="$(go env GOPATH)/bin"
           echo "$GOBIN" >> "$GITHUB_PATH"
-          export PATH="$GOBIN:$PATH"
+          echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          export PATH="$GOBIN:$GOPATH_BIN:$PATH"
           export GOPRIVATE=github.com/codex-k8s/*
           export GONOSUMDB=github.com/codex-k8s/*
           export GOPROXY=direct
