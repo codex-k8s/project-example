@@ -198,6 +198,14 @@ echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
+Чтобы `codexctl` был доступен в GitHub Actions (не‑интерактивные shell, без `.bashrc`),
+скопируйте бинарь в `/usr/local/bin`:
+
+```bash
+sudo cp "$(go env GOPATH)/bin/codexctl" /usr/local/bin/codexctl
+sudo chmod +x /usr/local/bin/codexctl
+```
+
 ## 2. Структура проекта
 
 Основные директории:
