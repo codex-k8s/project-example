@@ -35,6 +35,7 @@ jobs:
           GOPATH_BIN="$(go env GOPATH)/bin"
           echo "$GOBIN" >> "$GITHUB_PATH"
           echo "$GOPATH_BIN" >> "$GITHUB_PATH"
+          echo "PATH=$GOBIN:$GOPATH_BIN:$PATH" >> "$GITHUB_ENV"
           export PATH="$GOBIN:$GOPATH_BIN:$PATH"
           export GOPRIVATE=github.com/codex-k8s/*
           export GONOSUMDB=github.com/codex-k8s/*
