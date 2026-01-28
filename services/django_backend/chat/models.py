@@ -18,6 +18,7 @@ class Message(models.Model):
     user = models.ForeignKey(ChatUser, on_delete=models.CASCADE, related_name="messages")
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "chat_message"
@@ -25,4 +26,3 @@ class Message(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.nickname}: {self.text[:40]}"
-

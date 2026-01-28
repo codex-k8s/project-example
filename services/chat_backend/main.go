@@ -80,6 +80,7 @@ func main() {
 	mux.HandleFunc("/api/register", s.handleRegister)
 	mux.HandleFunc("/api/login", s.handleLogin)
 	mux.HandleFunc("/api/messages", s.handleMessages)
+	mux.HandleFunc("/api/messages/", s.handleMessageByID)
 
 	port := getenv("HTTP_PORT", "8080")
 	addr := ":" + port
@@ -312,6 +313,56 @@ func (s *server) handleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *server) handleMessageByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/messages/")
+	if idStr == "" || strings.Contains(idStr, "/") {
+		writeError(w, http.StatusBadRequest, "invalid message id")
+		return
+	}
+
+	messageID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || messageID <= 0 {
+		writeError(w, http.StatusBadRequest, "invalid message id")
+		return
+	}
+
+	userID, _, err := s.authenticate(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	tag, err := s.db.Exec(
+		ctx,
+		"UPDATE chat_message SET deleted_at = NOW() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL",
+		messageID,
+		userID,
+	)
+	if err != nil {
+		log.Printf("failed to delete message: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to delete message")
+		return
+	}
+
+	if tag.RowsAffected() == 0 {
+		writeError(w, http.StatusNotFound, "message not found")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"id":     messageID,
+		"status": "deleted",
+	})
+}
+
 func (s *server) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	userID, nickname, err := s.authenticate(r)
 	if err != nil {
@@ -402,7 +453,7 @@ func (s *server) handleListMessages(w http.ResponseWriter, r *http.Request) {
 		`SELECT m.id, u.id, u.nickname, m.text, m.created_at
          FROM chat_message m
          JOIN chat_user u ON m.user_id = u.id
-         WHERE m.id > $1
+         WHERE m.id > $1 AND m.deleted_at IS NULL
          ORDER BY m.id ASC
          LIMIT $2`,
 		afterID,

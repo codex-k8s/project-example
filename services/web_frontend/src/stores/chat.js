@@ -134,6 +134,25 @@ export const useChatStore = defineStore("chat", {
       }
       this.messages.push(data);
       this.lastMessageId = data.id;
+    },
+    async deleteMessage(messageId) {
+      this.error = null;
+      if (!this.token) {
+        this.error = "Not authenticated";
+        throw new Error(this.error);
+      }
+      const resp = await fetch(`/api/messages/${messageId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${this.token}`
+        }
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        this.error = data.error || "Failed to delete message";
+        throw new Error(this.error);
+      }
+      this.messages = this.messages.filter((msg) => msg.id !== messageId);
     }
   }
 });

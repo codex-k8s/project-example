@@ -11,7 +11,6 @@ class ChatUserAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "created_at")
+    list_display = ("id", "user", "created_at", "deleted_at")
     search_fields = ("user__nickname", "text")
-    list_filter = ("created_at",)
-
+    list_filter = ("created_at", "deleted_at")

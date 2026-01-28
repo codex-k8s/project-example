@@ -17,7 +17,7 @@
             Пароль:
             <input v-model="password" type="password" name="password" autocomplete="new-password" required />
           </label>
-          <button type="submit">Зарегистрироваться</button>
+          <button type="submit">📝 Зарегистрироваться</button>
         </form>
 
         <h2>Вход</h2>
@@ -30,14 +30,14 @@
             Пароль:
             <input v-model="password" type="password" name="password" autocomplete="current-password" required />
           </label>
-          <button type="submit">Войти</button>
+          <button type="submit">🔑 Войти</button>
         </form>
       </section>
 
       <section v-else class="chat">
         <div class="chat-header">
           <h2>Общий чат</h2>
-          <button type="button" @click="onLogout">Выйти</button>
+          <button type="button" @click="onLogout">🚪 Выйти</button>
         </div>
 
         <div class="messages" ref="messagesRef">
@@ -46,9 +46,20 @@
             :key="msg.id"
             :class="['message', { 'message--own': msg.userId === store.userId }]"
           >
-            <div class="meta">
-              <span class="author">{{ msg.nickname }}</span>
-              <span class="time">{{ formatTime(msg.createdAt) }}</span>
+            <div class="meta-row">
+              <div class="meta">
+                <span class="author">{{ msg.nickname }}</span>
+                <span class="time">{{ formatTime(msg.createdAt) }}</span>
+              </div>
+              <button
+                v-if="msg.userId === store.userId"
+                type="button"
+                class="delete-btn"
+                title="Удалить сообщение"
+                @click="onDeleteMessage(msg.id)"
+              >
+                🗑️
+              </button>
             </div>
             <div class="bubble">{{ msg.text }}</div>
           </div>
@@ -63,7 +74,7 @@
             placeholder="Введите сообщение..."
             maxlength="2000"
           />
-          <button type="submit">Отправить</button>
+          <button type="submit">📨 Отправить</button>
         </form>
       </section>
 
@@ -120,6 +131,10 @@ async function onSend() {
   await store.sendMessage(text);
   messageText.value = "";
   scrollToBottom();
+}
+
+async function onDeleteMessage(messageId) {
+  await store.deleteMessage(messageId);
 }
 
 function scrollToBottom() {
@@ -250,6 +265,12 @@ button:hover {
   gap: 8px;
 }
 
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .message .author {
   font-weight: 600;
 }
@@ -268,6 +289,19 @@ button:hover {
 .message--own .bubble {
   background-color: #e0f2fe;
   border-color: #bae6fd;
+}
+
+.delete-btn {
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: none;
+  background-color: #dc2626;
+  color: white;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  background-color: #b91c1c;
 }
 
 .empty {
