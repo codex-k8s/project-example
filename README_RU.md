@@ -123,6 +123,14 @@ docker login
 
 ### 1.5. Установка Golang 1.25+
 
+Через snap:
+
+```bash
+sudo snap install go --classic
+```
+
+Либо вручную:
+
 ```bash
 cd /tmp
 wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz

@@ -27,29 +27,20 @@ jobs:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
+      - name: "Install codexctl 🛠️"
         env:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
-
+          go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+          codexctl version
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
           REGISTRY_HOST: localhost:32000
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          ./codexctl ci images --env staging --mirror --build
+          codexctl ci images --env staging --mirror --build
 
       - name: "Apply staging via codexctl 🚀"
         env:
@@ -69,7 +60,7 @@ jobs:
           PATH:                 /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          ./codexctl ci apply --env staging --preflight --wait
+          codexctl ci apply --env staging --preflight --wait
 
   gc-registry:
     needs: deploy

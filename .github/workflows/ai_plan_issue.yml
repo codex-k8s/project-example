@@ -31,22 +31,13 @@ jobs:
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
+      - name: "Install codexctl 🛠️"
         env:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
-
+          go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+          codexctl version
       - name: "Allocate slot via codexctl 🧩"
         id: alloc
         env:
@@ -65,7 +56,7 @@ jobs:
             ARGS+=(--max "$MAX")
           fi
 
-          OUT="$(./codexctl "${ARGS[@]}")"
+          OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
           SLOT="$(echo "$OUT" | jq -r '.slot')"
           NS="$(echo "$OUT"   | jq -r '.namespace')"
@@ -85,22 +76,6 @@ jobs:
         with:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
-        env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
-        run: |
-          set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
 
       - name: "Apply AI plan env via codexctl 🚀"
         id: ensure
@@ -128,7 +103,7 @@ jobs:
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi
-          OUT="$(./codexctl "${ARGS[@]}")"
+          OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
           INFRA_READY="$(echo "$OUT" | jq -r '.infraReady // true')"
           echo "infra_ready=$INFRA_READY" >> "$GITHUB_OUTPUT"
@@ -147,22 +122,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
-        env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
-        run: |
-          set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
 
       - name: "Run planning agent inline 🤖"
         env:
@@ -187,7 +146,7 @@ jobs:
           if [ "$INFRA_READY" = "false" ] || [ "$INFRA_READY" = "0" ]; then
             ARGS+=(--infra-unhealthy)
           fi
-          ./codexctl "${ARGS[@]}"
+          codexctl "${ARGS[@]}"
 
   cleanup-ai-plan:
     needs: [create-ai-plan, deploy-ai-plan, run-codex-plan]
@@ -205,22 +164,6 @@ jobs:
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
-        env:
-          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
-        run: |
-          set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
-
       - name: "Cleanup AI plan slot on failure (global) 🧹"
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -236,4 +179,4 @@ jobs:
             exit 0
           fi
 
-          ./codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
+          codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true

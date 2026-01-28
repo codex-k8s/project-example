@@ -25,22 +25,13 @@ jobs:
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
 
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Build codexctl ⚒️"
+      - name: "Install codexctl 🛠️"
         env:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
-
+          go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+          codexctl version
       - name: "Cleanup for PR closed 🧹"
         if: github.event_name == 'pull_request'
         env:
@@ -49,7 +40,7 @@ jobs:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          ./codexctl manage-env cleanup --env ai --pr "${PR_NUMBER}" --with-configmap || true
+          codexctl manage-env cleanup --env ai --pr "${PR_NUMBER}" --with-configmap || true
           BRANCH="${{ github.event.pull_request.head.ref }}"
           if echo "$BRANCH" | grep -q '^codex/issue-'; then
             gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
@@ -63,6 +54,6 @@ jobs:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          ./codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
+          codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
           BRANCH="codex/issue-${ISSUE_NUMBER}"
           gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true

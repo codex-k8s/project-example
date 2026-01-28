@@ -40,25 +40,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.CODEX_GH_PAT }}
-
-      - name: "Checkout codexctl 📥"
-        uses: actions/checkout@v4
-        with:
-          repository: codex-k8s/codexctl
-          ref: main
-          path: ./.codexctl
-          token: ${{ secrets.CODEX_GH_PAT }}
           persist-credentials: true
           fetch-depth: 1
 
-      - name: "Build codexctl ⚒️"
+      - name: "Install codexctl 🛠️"
         env:
           PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
         run: |
           set -euo pipefail
-          cd ./.codexctl
-          go build -o ../codexctl ./cmd/codexctl
-
+          go install github.com/codex-k8s/codexctl/cmd/codexctl@latest
+          codexctl version
       - name: "Resolve root planning issue 🔗"
         id: root_issue
         env:
@@ -71,7 +62,7 @@ jobs:
           FOCUS="${FOCUS_ISSUE_NUMBER}"
           REPO="${GITHUB_REPOSITORY}"
 
-          OUT="$(./codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}" --output json)"
+          OUT="$(codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}" --output json)"
           echo "$OUT"
 
           ROOT="$(echo "$OUT" | jq -r '.root')"
@@ -104,7 +95,7 @@ jobs:
           if [ -n "${MAX}" ]; then
             ARGS+=(--max "${MAX}")
           fi
-          OUT="$(./codexctl "${ARGS[@]}")"
+          OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
 
           JSON_LINE="$(printf '%s\n' "$OUT" | tail -n1)"
@@ -168,4 +159,4 @@ jobs:
             ARGS+=("$RESUME_FLAG")
           fi
 
-          ./codexctl "${ARGS[@]}"
+          codexctl "${ARGS[@]}"
