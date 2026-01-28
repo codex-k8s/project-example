@@ -151,12 +151,16 @@ jobs:
           SLOT="${{ needs.create-ai.outputs.slot }}"
           NS="${{ needs.create-ai.outputs.namespace }}"
           ISSUE="${{ github.event.issue.number }}"
-          ARGS=(prompt run --env ai --slot "${SLOT}" --kind repair_issue --lang ru --infra-unhealthy)
+          INFRA_READY="${{ needs.deploy-ai.outputs.infra_ready }}"
+          ARGS=(prompt run --env ai --slot "${SLOT}" --kind repair_issue --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
           if [ -n "$ISSUE" ]; then
             ARGS+=(--issue "$ISSUE")
+          fi
+          if [ "$INFRA_READY" = "false" ] || [ "$INFRA_READY" = "0" ]; then
+            ARGS+=(--infra-unhealthy)
           fi
           codexctl "${ARGS[@]}"
 
