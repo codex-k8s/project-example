@@ -130,6 +130,29 @@ docker login
 sudo snap install go --classic
 ```
 
+Если Go установлен через snap, бинарники лежат в `/snap/bin`. Чтобы `go`/`gofmt`
+были доступны в не‑интерактивных сессиях (например, GitHub Actions runner),
+рекомендуется один из вариантов:
+
+Вариант A (проще и надежнее):
+
+```bash
+sudo ln -sf /snap/bin/go /usr/local/bin/go
+sudo ln -sf /snap/bin/gofmt /usr/local/bin/gofmt
+```
+
+Вариант B (через PATH в systemd‑сервисе runner):
+
+```bash
+sudo systemctl edit actions.runner.*.service
+# добавить:
+# [Service]
+# Environment=PATH=/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+sudo systemctl daemon-reload
+sudo systemctl restart actions.runner.*.service
+```
+
 Либо вручную:
 
 ```bash
@@ -411,48 +434,18 @@ Kubernetes‑манифесты и документацию под свои се
 
 ### Базовая настройка брандмауэра
 
-Рекомендуется включить и настроить брандмауэр (firewall) на VPS,
-ограничив доступ к необходимым портам (например, 80, 443 для ingress‑контроллера и 22 для SSH).
+Рекомендуется **сначала** ограничить входящие порты на уровне хостинга
+(Cloud Firewall / Security Group / Firewall в панели провайдера).
+Оставьте открытыми на входящие соединения только:
 
-```bash
-# проверить статус
-sudo ufw status
+- `22/tcp` — SSH (лучше ограничить по своему IP);
+- `80/tcp` и `443/tcp` — входной трафик на ingress;
+- дополнительные порты — **только если они реально нужны** (например, метрики или админ‑инструменты).
 
-# разрешить SSH (ОБЯЗАТЕЛЬНО до enable, если ты по ssh)
-sudo ufw allow 22/tcp
+После этого включите и настройте брандмауэр (UFW) на VPS,
+ограничив доступ к тем же портам.
 
-# разрешить HTTP / HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# запретить всё входящее по умолчанию
-sudo ufw default deny incoming
-
-# разрешить всё исходящее
-sudo ufw default allow outgoing
-
-# включить ufw
-sudo ufw enable
-
-# проверить статус
-sudo ufw status verbose
-```
-
-Ожидаемый вывод:
-
-```plaintext
-To                         Action      From
---                         ------      ----
-22/tcp                     ALLOW IN    Anywhere                  
-80/tcp                     ALLOW IN    Anywhere                  
-443/tcp                    ALLOW IN    Anywhere                  
-22/tcp (v6)                ALLOW IN    Anywhere (v6)             
-80/tcp (v6)                ALLOW IN    Anywhere (v6)             
-443/tcp (v6)               ALLOW IN    Anywhere (v6)  
-```
-
-Если у вас статический IP‑адрес, рекомендуется ограничить доступ по SSH
-только с этого IP‑адреса.
+На исходящие соединения обычно можно не ограничивать.
 
 ### Работа агента
 
