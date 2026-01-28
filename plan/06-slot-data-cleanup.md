@@ -7,7 +7,7 @@
 - В `/home/s/projects/project-example/deploy/postgres.service.yaml` и `/home/s/projects/project-example/deploy/redis.service.yaml` используется `hostPath` на `DATA_ROOT/slots/<slot>` (ai) или `DATA_ROOT/<env>` (dev/staging).
 - Аналогично в `/home/s/projects/Alimentor/deploy/postgres.service.yaml`, `/home/s/projects/Alimentor/deploy/redis.service.yaml`, `/home/s/projects/Alimentor/deploy/rabbitmq.service.yaml`.
 - `ensure-local-data-dirs` реализован как shell‑hook в `services.yaml`, но список директорий жёстко закодирован внутри скрипта и отличается по проектам.
-- `manage-env cleanup` и `manage-env gc` в `/home/s/projects/codexctl/internal/cli/manage_env.go` удаляют namespace и configmap, но не затрагивают `DATA_ROOT`.
+- `manage-env cleanup` в `/home/s/projects/codexctl/internal/cli/manage_env.go` удаляет namespace и configmap, но не затрагивает `DATA_ROOT`.
 
 ## Что меняем (что именно добавляем)
 - В `/home/s/projects/codexctl/internal/config/config.go` добавляем новый блок `dataPaths`, где проект описывает список директорий данных (полные пути или шаблоны, завязанные на `DATA_ROOT`, `Env`, `Slot`).
@@ -20,7 +20,7 @@
 ## Что значит «создавать/очищать/удалять»
 - Создавать: при запуске окружения (до apply) создаём директории из `dataPaths`.
 - Очищать: при явном пересоздании/repair‑режиме удаляем содержимое директорий, но оставляем сами директории.
-- Удалять: при cleanup/GC удаляем директории слота полностью.
+- Удалять: при cleanup удаляем директории слота полностью.
 
 ## Зачем / ожидаемый эффект
 - Слоты получают чистую БД при повторном использовании.

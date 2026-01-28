@@ -68,7 +68,8 @@
 - `infrastructure` — группы манифестов (`namespace-and-config`, `data-services`, `observability` и т.д.);
 - `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`).
 
-Dev‑AI‑слоты (`env=ai`) создаются и управляются через `codexctl manage-env`
+Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensure-slot/ensure-ready`,
+а метаданные/очистка выполняются через `codexctl manage-env` (set/comment/cleanup)
 из GitHub Actions — см. `.github/workflows/ai_*.yml`.
 Режимы:
 - `[ai-dev]` — обычная разработка агентом;

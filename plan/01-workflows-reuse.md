@@ -6,7 +6,7 @@
 ## Где сейчас и нюансы (по результатам анализа)
 - `/home/s/projects/project-example/.github/workflows/staging_deploy_main.yml` — есть ручные ретраи `codexctl apply` и отдельный `kubectl wait` с backoff.
 - `/home/s/projects/Alimentor/.github/workflows/staging_deploy_main.yml` — похожий пайплайн, но без ретраев и с другой логикой ожидания.
-- `/home/s/projects/project-example/.github/workflows/ai_*` и `/home/s/projects/Alimentor/.github/workflows/ai_*` — повторы checkout/build codexctl, `manage-env ensure-ready`, `prompt run`, `cleanup`.
+- `/home/s/projects/project-example/.github/workflows/ai_*` и `/home/s/projects/Alimentor/.github/workflows/ai_*` — повторы checkout/build codexctl, `ci ensure-ready`, `prompt run`, `cleanup`.
 - В `/home/s/projects/codexctl/internal/hooks/hooks.go` есть ограниченный набор встроенных хуков (`kubectl.wait`, `github.comment`, `sleep`, `preflight`), но нет доменных хуков из `services.yaml`.
 - В `/home/s/projects/Alimentor/services.yaml` есть shell‑хуки:
   - `ensure-local-data-dirs` (beforeAll) — создание каталогов в `DATA_ROOT`.
@@ -21,7 +21,7 @@
 - В `/home/s/projects/codexctl` добавляем группу `codexctl ci ...`, которая инкапсулирует:
   - images mirror/build;
   - apply + wait с едиными ретраями/таймаутами;
-  - manage-env ensure‑ready + prompt run;
+  - ci ensure‑ready + prompt run;
   - cleanup/gc.
 - В `/home/s/projects/project-example/.github/workflows/*` и `/home/s/projects/Alimentor/.github/workflows/*` заменяем длинные скрипты на короткие вызовы `codexctl ci ...`.
 

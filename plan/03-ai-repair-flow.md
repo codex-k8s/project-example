@@ -5,7 +5,7 @@
 
 ## Где сейчас и нюансы (по результатам анализа)
 - `/home/s/projects/project-example/.github/workflows/ai_dev_issue.yml` и `/home/s/projects/project-example/.github/workflows/ai_plan_issue.yml`:
-  - `manage-env ensure-ready` вызывается с `--apply` и `--prepare-images`.
+- `ci ensure-ready` вызывается с `--apply` и `--prepare-images`.
   - При ошибке `ensure-ready` пайплайн падает, агент не стартует.
 - Аналогично в `/home/s/projects/Alimentor/.github/workflows/ai_dev_issue.yml` и `/home/s/projects/Alimentor/.github/workflows/ai_plan_issue.yml`.
 - `ensure-ready` в `/home/s/projects/codexctl/internal/cli/manage_env.go`:

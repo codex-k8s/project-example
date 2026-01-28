@@ -1,6 +1,6 @@
 # Дополнительные изменения (вне *.result.md)
 
-- /home/s/projects/codexctl/internal/cli/doctor.go: уточнены проверки наличия утилит (только реально используемые), убран self‑check `codexctl`.
+- /home/s/projects/codexctl/internal/cli/doctor_checks.go: уточнены проверки наличия утилит (только реально используемые), убран self‑check `codexctl`.
 - /home/s/projects/project-example/services.yaml и /home/s/projects/Alimentor/services.yaml: `versions.codexctl` переведён на `latest`.
 - /home/s/projects/project-example/deploy/codex/Dockerfile, /home/s/projects/Alimentor/deploy/codex/Dockerfile, /home/s/projects/codexctl/examples/codex-agent/Dockerfile: дефолт `CODEXCTL_VERSION` сменён на `latest`.
 - /home/s/projects/codexctl/internal/prompt/templates/*.tmpl: добавлено описание `codexctl` среди базовых инструментов, а в блоках Context7 указано, что там доступна справка по `github.com/codex-k8s/codexctl`.

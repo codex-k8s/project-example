@@ -80,8 +80,8 @@ REGISTRY_HOST=localhost:32000 ./codexctl images build  --env "$ENV"
 - шаги:
   - checkout репозитория и `codexctl`;
   - сборка `codexctl`;
-  - `images mirror` и `images build` в локальный registry `localhost:32000`;
-  - `codexctl apply --env staging --wait --preflight`.
+  - `codexctl ci images --env staging --mirror --build` в локальный registry `localhost:32000`;
+  - `codexctl ci apply --env staging --wait --preflight`.
 
 ### Dev‑AI слоты и агенты
 
@@ -96,6 +96,6 @@ REGISTRY_HOST=localhost:32000 ./codexctl images build  --env "$ENV"
 
 Все эти воркфлоу вызывают:
 
-- `codexctl manage-env ensure-slot/ensure-ready` для управления слотами;
+- `codexctl ci ensure-slot/ensure-ready` для управления слотами;
 - `codexctl prompt run` для запуска агента с нужным `kind`;
 - при необходимости — `codexctl pr review-apply` для переноса правок в PR.
