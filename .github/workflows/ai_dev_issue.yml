@@ -67,13 +67,7 @@ jobs:
             ARGS+=(--max "$MAX")
           fi
 
-          OUT="$(codexctl "${ARGS[@]}" 2>codexctl.err | \
-            sed -n 's/^\({.*}\)$/\1/p' | tail -n 1)"
-          if [ -z "$OUT" ]; then
-            echo "error: codexctl did not return JSON" >&2
-            cat codexctl.err >&2 || true
-            exit 1
-          fi
+          OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
           SLOT="$(echo "$OUT" | jq -r '.slot')"
           NS="$(echo "$OUT"   | jq -r '.namespace')"
@@ -120,13 +114,7 @@ jobs:
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi
-          OUT="$(codexctl "${ARGS[@]}" 2>codexctl.err | \
-            sed -n 's/^\({.*}\)$/\1/p' | tail -n 1)"
-          if [ -z "$OUT" ]; then
-            echo "error: codexctl did not return JSON" >&2
-            cat codexctl.err >&2 || true
-            exit 1
-          fi
+          OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
           INFRA_READY="$(echo "$OUT" | jq -r '.infraReady // true')"
           echo "infra_ready=$INFRA_READY" >> "$GITHUB_OUTPUT"
