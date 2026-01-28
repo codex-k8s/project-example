@@ -150,6 +150,33 @@ sudo mv kubectl /usr/local/bin/kubectl
 kubectl version --client --output=yaml || true
 ```
 
+Также для `codexctl` требуются утилиты:
+- `bash` (обычно уже установлен);
+- `git`;
+- `gh` (GitHub CLI);
+- `docker` (для сборки/пуша образов);
+- `kubectl`;
+- `rsync` (опционально, ускоряет синхронизацию).
+
+Проверка доступности утилит:
+
+```bash
+for t in kubectl bash docker git gh rsync; do
+  if command -v "$t" >/dev/null 2>&1; then
+    echo "OK  $t -> $(command -v "$t")"
+  else
+    echo "MISS $t"
+  fi
+done
+```
+
+Установка `git`, `gh` и `rsync` (Ubuntu 24):
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git rsync gh
+```
+
 ## 2. Структура проекта
 
 Основные директории:
