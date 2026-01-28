@@ -17,7 +17,6 @@ jobs:
     name: "Allocate slot 🧩"
     if: >-
       github.event.label.name == '[ai-repair]' &&
-      github.actor != vars.CODEX_GH_USERNAME &&
       contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     timeout-minutes: 360

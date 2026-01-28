@@ -17,7 +17,6 @@ jobs:
     name: "Review-fix agent run 🤖"
     if: >-
       github.event.review.state == 'changes_requested' &&
-      github.actor != vars.CODEX_GH_USERNAME &&
       contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging

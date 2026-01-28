@@ -18,7 +18,6 @@ jobs:
     if: >
       github.event.issue.pull_request == null &&
       contains(github.event.comment.body, '[ai-plan]') &&
-      github.actor != vars.CODEX_GH_USERNAME &&
       contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging
