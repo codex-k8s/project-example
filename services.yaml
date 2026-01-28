@@ -26,6 +26,7 @@ codex:
   timeouts:
     exec: "60m"
     rollout: "30m"
+    deployWait: "10m"
 
 namespace:
   patterns:

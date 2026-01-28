@@ -124,7 +124,7 @@ jobs:
           MAX="${{ vars.DEV_SLOTS_MAX }}"
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --wait-timeout 1200s --output json)
+          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --output json)
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi

@@ -221,6 +221,10 @@ mkdir -p ~/codex/envs ~/codex/data
 Рекомендуется задать их как Repository Variables в GitHub и/или
 как переменные среды при запуске `codexctl`.
 
+Таймаут ожидания деплоя:
+- `codex.timeouts.deployWait` в `services.yaml` управляет временем ожидания `kubectl wait` после `codexctl apply/ci ensure-ready`.
+- Значение по умолчанию — `10m` (если не задано в `services.yaml` и не переопределено флагом `--wait-timeout`).
+
 ## 5. Переменные и секреты в GitHub
 
 ### 5.1. Repository Variables (`Settings → Secrets and variables → Actions → Variables`)
