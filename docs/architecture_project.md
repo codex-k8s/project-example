@@ -56,18 +56,18 @@
 - `cluster-issuer.yaml` — ClusterIssuer для Let’s Encrypt;
 - `echo-probe.yaml` — временный echo‑сервис для проверки доступности домена перед выпуском сертификата;
 - `ingress-nginx.controller.yaml` — ingress‑контроллер;
-- `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa`.
+- `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa` (включая staging‑repair).
 
 ### Codex и dev‑AI слоты
 
 `services.yaml` описывает:
 
 - `project: project-example`;
-- `baseDomain.dev/staging/ai` — домены;
-- `environments.dev/staging/ai` — kubeconfig и registry;
+- `baseDomain.dev/staging/ai/staging_repair` — домены;
+- `environments.dev/staging/ai/staging_repair` — kubeconfig и registry;
 - `images` — сборку образов сервисов и Codex;
 - `infrastructure` — группы манифестов (`namespace-and-config`, `data-services`, `observability` и т.д.);
-- `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`).
+- `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`, `codex-staging-repair`).
 
 Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensure-slot/ensure-ready`,
 а метаданные/очистка выполняются через `codexctl manage-env` (set/comment/cleanup)
@@ -75,7 +75,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 Режимы:
 - `[ai-dev]` — обычная разработка агентом;
 - `[ai-plan]` — планирование задач агентом;
-- `[ai-repair]` — восстановление инфраструктуры и сервисов агентом.
+- `[staging-repair]` — восстановление стейджинга агентом.
 
 ## Структура директорий (основное)
 
@@ -99,6 +99,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 │   └── codex/
 │       ├── Dockerfile
 │       ├── rbac.yaml
+│       ├── rbac-staging-repair.yaml
 │       ├── codex-deploy.yaml
 │       └── ingress-dev.yaml
 ├── services/

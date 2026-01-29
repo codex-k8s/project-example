@@ -25,6 +25,21 @@ jobs:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEX_GH_PAT }}
 
+      - name: "Sync staging sources 📂"
+        env:
+          CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CODE_ROOT_BASE:-}" ]; then
+            echo "error: CODE_ROOT_BASE is not set" >&2
+            exit 1
+          fi
+          STAGING_SRC="${CODE_ROOT_BASE}/staging/src"
+          mkdir -p "${STAGING_SRC}"
+          rsync -a --delete \
+            --exclude '.cache' \
+            ./ "${STAGING_SRC}/"
+
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
           REGISTRY_HOST: localhost:32000

@@ -36,6 +36,10 @@ jobs:
           if echo "$BRANCH" | grep -q '^codex/issue-'; then
             gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
           fi
+          if echo "$BRANCH" | grep -q '^codex/staging-repair-'; then
+            codexctl manage-env cleanup --env staging_repair --pr "${PR_NUMBER}" --with-configmap || true
+            gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
+          fi
 
       - name: "Close linked Issue after merge ✅"
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
@@ -46,6 +50,11 @@ jobs:
           set -euo pipefail
           BRANCH="${{ github.event.pull_request.head.ref }}"
           if [[ "$BRANCH" =~ ^codex/issue-([0-9]+)$ ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+            gh issue close "${ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
+          fi
+          if [[ "$BRANCH" =~ ^codex/staging-repair-([0-9]+)$ ]]; then
             ISSUE_NUMBER="${BASH_REMATCH[1]}"
             printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
             gh issue close "${ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
@@ -61,3 +70,6 @@ jobs:
           codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
           BRANCH="codex/issue-${ISSUE_NUMBER}"
           gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
+          codexctl manage-env cleanup --env staging_repair --issue "${ISSUE_NUMBER}" --with-configmap || true
+          BRANCH_REPAIR="codex/staging-repair-${ISSUE_NUMBER}"
+          gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH_REPAIR}" || true

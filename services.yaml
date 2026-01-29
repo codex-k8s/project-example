@@ -1,4 +1,6 @@
-# {{- $slotCodeRoot := default (envOr "CODE_ROOT_BASE" "") (printf "%s/slots" .ProjectRoot) -}}
+# {{- $codeRootBase := envOr "CODE_ROOT_BASE" "" -}}
+# {{- $slotCodeRoot := default (printf "%s/slots" .ProjectRoot) $codeRootBase -}}
+# {{- $stagingCodeRoot := default .ProjectRoot (ternary (ne $codeRootBase "") (printf "%s/staging/src" $codeRootBase) "") -}}
 # {{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
 project: project-example
 
@@ -19,6 +21,7 @@ codex:
   projectContext: |
     - Перед началом работы прочитай ./AGENTS.md и релевантную документацию в docs/*.md.
     - Для проверки используй kubectl (логи и статусы pod’ов/деплойментов) и HTTP‑эндпоинты сервисов (frontend, Go API, Django admin).
+    - Для работы с манифестами используй `codexctl render` и `codexctl apply` только с фильтрами `--only-services/--only-infra` (или `--skip-*`); не запускай apply без фильтров и не включай сервис `codex`.
   servicesOverview: |
     - Django backend: админка и миграции БД PostgreSQL.
     - Go chat backend: HTTP API чата, авторизация, работа с PostgreSQL и Redis.
@@ -33,6 +36,7 @@ namespace:
     dev: "{{ .Project }}-dev"
     staging: "{{ .Project }}-staging"
     ai: "{{ .Project }}-dev-{{ .Slot }}"
+    staging_repair: "{{ .Project }}-staging-repair-{{ .Slot }}"
 
 maxSlots: 0
 
@@ -42,6 +46,7 @@ baseDomain:
   dev: '{{ envOr "BASE_DOMAIN_DEV" "dev.example-domain.ru" }}'
   staging: '{{ envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru" }}'
   ai: '{{ envOr "BASE_DOMAIN_AI" (envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru") }}'
+  staging_repair: '{{ envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru" }}'
 
 dataPaths:
   root: '{{ $dataRoot }}'
@@ -153,6 +158,9 @@ environments:
   ai:
     from: "staging"
     imagePullPolicy: IfNotPresent
+  staging_repair:
+    from: "staging"
+    imagePullPolicy: IfNotPresent
 
 hooks:
   beforeAll:
@@ -162,6 +170,7 @@ hooks:
 
 infrastructure:
   - name: namespace-and-config
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") (eq .Env "staging_repair") }}'
     manifests:
       - path: deploy/namespace.yaml
       - path: deploy/dns.configmap.yaml
@@ -169,10 +178,12 @@ infrastructure:
       - path: deploy/secret.yaml
 
   - name: tls-issuer
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/cluster-issuer.yaml
 
   - name: echo-probe
+    when: '{{ eq .Env "staging" }}'
     manifests:
       - path: deploy/echo-probe.yaml
     hooks:
@@ -222,11 +233,13 @@ infrastructure:
             kubectl -n "${NS}" delete deploy/echo-probe svc/echo-probe ingress/echo-probe --ignore-not-found || true
 
   - name: data-services
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/postgres.service.yaml
       - path: deploy/redis.service.yaml
 
   - name: observability
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/jaeger.yaml
 
@@ -237,6 +250,7 @@ services:
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "django-backend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
@@ -246,7 +260,7 @@ services:
       staging:
         hostMounts:
           - name: django-src
-            hostPath: "{{ .ProjectRoot }}/services/django_backend"
+            hostPath: '{{ printf "%s/services/django_backend" $stagingCodeRoot }}'
             mountPath: "/backend"
       ai:
         hostMounts:
@@ -261,6 +275,7 @@ services:
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/chat-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "chat-backend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
@@ -270,7 +285,7 @@ services:
       staging:
         hostMounts:
           - name: go-src
-            hostPath: "{{ .ProjectRoot }}/services/chat_backend"
+            hostPath: '{{ printf "%s/services/chat_backend" $stagingCodeRoot }}'
             mountPath: "/app"
       ai:
         hostMounts:
@@ -285,6 +300,7 @@ services:
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/web-frontend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "web-frontend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
@@ -294,7 +310,7 @@ services:
       staging:
         hostMounts:
           - name: web-src
-            hostPath: "{{ .ProjectRoot }}/services/web_frontend"
+            hostPath: '{{ printf "%s/services/web_frontend" $stagingCodeRoot }}'
             mountPath: "/app"
       ai:
         hostMounts:
@@ -326,3 +342,19 @@ services:
         - name: reuse-dev-tls-secret
           when: '{{ eq .Env "ai" }}'
           use: codex.reuse-dev-tls-secret
+
+  - name: codex-staging-repair
+    manifests:
+      - path: deploy/codex/rbac-staging-repair.yaml
+      - path: deploy/codex/codex-deploy.yaml
+    image:
+      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/codex'
+      tagTemplate: '{{ printf "%s-%s" "staging" (index .Versions "codex") }}'
+    when: '{{ eq .Env "staging_repair" }}'
+    overlays:
+      staging_repair:
+        hostMounts:
+          - name: code-src
+            hostPath: '{{ $stagingCodeRoot }}'
+            mountPath: "/workspace"
+        dropKinds: ["Ingress"]

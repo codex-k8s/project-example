@@ -1,4 +1,7 @@
-{{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
+{{- $hostEnv := ternary (eq .Env "staging_repair") "staging" .Env -}}
+{{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain $hostEnv) -}}
+{{- $redisHost := ternary (eq .Env "staging_repair") (printf "redis.%s-staging.svc.cluster.local" .Project) "redis" -}}
+{{- $dbHost := ternary (eq .Env "staging_repair") (printf "postgres.%s-staging.svc.cluster.local" .Project) "postgres" -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,7 +18,7 @@ metadata:
   namespace: {{ .Namespace }}
 data:
   REDIS_DB: "0"
-  REDIS_HOST: "redis"
+  REDIS_HOST: "{{ $redisHost }}"
   REDIS_PORT: "6379"
 ---
 apiVersion: v1
@@ -25,6 +28,5 @@ metadata:
   namespace: {{ .Namespace }}
 data:
   POSTGRES_DB: "chat"
-  POSTGRES_HOST: "postgres"
+  POSTGRES_HOST: "{{ $dbHost }}"
   POSTGRES_PORT: "5432"
-
