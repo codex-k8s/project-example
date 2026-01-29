@@ -173,9 +173,13 @@ infrastructure:
     when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") (eq .Env "staging_repair") }}'
     manifests:
       - path: deploy/namespace.yaml
-      - path: deploy/dns.configmap.yaml
       - path: deploy/configmap.yaml
       - path: deploy/secret.yaml
+
+  - name: cluster-dns
+    when: '{{ eq .Env "staging" }}'
+    manifests:
+      - path: deploy/dns.configmap.yaml
 
   - name: codex-staging-repair-rbac
     when: '{{ eq .Env "staging_repair" }}'
