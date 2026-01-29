@@ -39,6 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
+          codexctl manage-env cleanup --env staging_repair --all --with-configmap || true
           ENV_NAME="staging_repair"
           ISSUE="${{ github.event.issue.number }}"
           MAX="${{ vars.DEV_SLOTS_MAX }}"
@@ -177,6 +178,10 @@ jobs:
           SLOT="${{ needs.create-staging-repair.outputs.slot }}"
           NS="${{ needs.create-staging-repair.outputs.namespace }}"
           ISSUE="${{ github.event.issue.number }}"
+          if [ -z "${SLOT}" ] || [ "${SLOT}" = "0" ]; then
+            echo "error: SLOT is empty or 0" >&2
+            exit 1
+          fi
           ARGS=(prompt run --env staging_repair --slot "${SLOT}" --kind staging_repair_issue --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
@@ -184,6 +189,7 @@ jobs:
           if [ -n "$ISSUE" ]; then
             ARGS+=(--issue "$ISSUE")
           fi
+          trap 'codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true' TERM INT
           codexctl "${ARGS[@]}"
 
       - name: "Cleanup staging repair env on failure 🧹"
