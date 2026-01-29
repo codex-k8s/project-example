@@ -42,7 +42,7 @@ jobs:
           codexctl manage-env cleanup --env staging_repair --all --with-configmap || true
           ENV_NAME="staging_repair"
           ISSUE="${{ github.event.issue.number }}"
-          MAX="${{ vars.DEV_SLOTS_MAX }}"
+          MAX="1"
 
           ARGS=(ci ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}" --output kv)
           if [ -n "$MAX" ]; then
@@ -189,7 +189,6 @@ jobs:
           if [ -n "$ISSUE" ]; then
             ARGS+=(--issue "$ISSUE")
           fi
-          trap 'codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true' TERM INT
           codexctl "${ARGS[@]}"
 
       - name: "Cleanup staging repair env on failure 🧹"

@@ -58,13 +58,12 @@ jobs:
       - name: "Resolve slot and namespace for PR 📇"
         id: card
         env:
-          PR:            ${{ github.event.pull_request.number }}
-          DEV_SLOTS_MAX: ${{ vars.DEV_SLOTS_MAX }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
           PR_NUMBER="${PR}"
-          MAX="${DEV_SLOTS_MAX:-}"
+          MAX="1"
 
           ARGS=(ci ensure-slot --env staging_repair --pr "${PR_NUMBER}" --output kv)
           if [ -n "${MAX}" ]; then

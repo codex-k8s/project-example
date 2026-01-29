@@ -35,8 +35,8 @@ namespace:
   patterns:
     dev: "{{ .Project }}-dev"
     staging: "{{ .Project }}-staging"
-    ai: "{{ .Project }}-dev-{{ .Slot }}"
-    staging_repair: "{{ .Project }}-staging-repair-{{ .Slot }}"
+    ai: '{{ .Project }}-dev-{{ "{{ .Slot }}" }}'
+    staging_repair: '{{ .Project }}-staging-repair-{{ "{{ .Slot }}" }}'
 
 maxSlots: 0
 
