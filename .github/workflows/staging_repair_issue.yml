@@ -39,11 +39,14 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          codexctl manage-env cleanup --env staging_repair --all --with-configmap || true
           ENV_NAME="staging_repair"
           ISSUE="${{ github.event.issue.number }}"
+          MAX="${{ vars.DEV_SLOTS_MAX }}"
 
           ARGS=(ci ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}" --output kv)
+          if [ -n "$MAX" ]; then
+            ARGS+=(--max "$MAX")
+          fi
 
           OUT="$(codexctl "${ARGS[@]}")"
           echo "$OUT"
