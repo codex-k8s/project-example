@@ -121,6 +121,34 @@ docker login
 
 > You have reached your unauthenticated pull rate limit.
 
+### 1.4.1. Docker socket для Codex‑pod
+
+В `services.yaml` для сервиса `codex` настроен `hostMount` на `/var/run/docker.sock`.
+Это нужно, чтобы внутри pod’а работали команды `docker` (например, при сборке образов).
+
+Так как pod запускается от пользователя `runner` с UID/GID `1000`,
+нужно дать этому GID доступ к сокету Docker на хосте:
+
+```bash
+sudo apt-get install -y acl
+sudo setfacl -m g:1000:rw /var/run/docker.sock
+getfacl /var/run/docker.sock | grep -E 'group:1000|mask'
+```
+
+Чтобы права не сбрасывались после перезапуска Docker, добавьте post‑hook:
+
+```bash
+sudo systemctl edit docker
+# [Service]
+# ExecStartPost=/bin/setfacl -m g:1000:rw /var/run/docker.sock
+
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+```
+
+Если UID/GID отличается от `1000`, задайте `CODEX_WORKSPACE_UID/GID`
+для pod’а codex и выдайте доступ к сокету соответствующей группе.
+
 
 ### 1.5. Установка Golang 1.25+
 

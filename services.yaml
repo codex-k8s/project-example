@@ -64,7 +64,7 @@ versions:
   django-backend: "0.1.1"
   chat-backend: "0.1.2"
   web-frontend: "0.1.2"
-  codex: "0.1.0"
+  codex: "0.2.0"
   codexctl: "latest"
   busybox: "1.37.0"
   http-echo: "0.2.3"
@@ -343,11 +343,17 @@ services:
           - name: code-src
             hostPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
             mountPath: "/workspace"
+          - name: docker-sock
+            hostPath: /var/run/docker.sock
+            mountPath: /var/run/docker.sock
       staging_repair:
         hostMounts:
           - name: code-src
             hostPath: '{{ $stagingCodeRoot }}'
             mountPath: "/workspace"
+          - name: docker-sock
+            hostPath: /var/run/docker.sock
+            mountPath: /var/run/docker.sock
         dropKinds: ["Ingress"]
     hooks:
       afterApply:

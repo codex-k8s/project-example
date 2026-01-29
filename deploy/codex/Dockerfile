@@ -20,7 +20,7 @@ RUN apt-get update -y \
       postgresql-client redis-tools \
       netcat-openbsd unzip zip make build-essential \
       gettext-base \
-      software-properties-common ripgrep \
+      software-properties-common ripgrep rsync docker.io \
   && rm -rf /var/lib/apt/lists/*
 
 RUN install -m 0755 -d /etc/apt/keyrings \
@@ -68,7 +68,9 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
  && GO111MODULE=on go install github.com/google/wire/cmd/wire@latest
 
 ARG CODEXCTL_VERSION=latest
-RUN go install github.com/codex-k8s/codexctl/cmd/codexctl@${CODEXCTL_VERSION}
+RUN GOBIN="$(go env GOPATH)/bin" go install github.com/codex-k8s/codexctl/cmd/codexctl@${CODEXCTL_VERSION} \
+ && cp "$(go env GOPATH)/bin/codexctl" /usr/local/bin/codexctl \
+ && chmod +x /usr/local/bin/codexctl
 
 ARG KUBECTL_VERSION
 RUN curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
