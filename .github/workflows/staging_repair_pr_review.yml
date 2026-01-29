@@ -121,7 +121,7 @@ jobs:
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-infra codex-staging-repair-rbac \
+            --only-infra namespace-and-config,codex-staging-repair-rbac \
             --only-services codex
 
       - name: "Run Codex staging repair review 🤖"
@@ -175,7 +175,7 @@ jobs:
             --lang ru
 
       - name: "Cleanup staging repair env on failure 🧹"
-        if: failure() && steps.card.outputs.SLOT != ''
+        if: (failure() || cancelled()) && steps.card.outputs.SLOT != ''
         env:
           SLOT: ${{ steps.card.outputs.SLOT }}
         run: |

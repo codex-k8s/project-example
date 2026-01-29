@@ -114,11 +114,11 @@ jobs:
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-infra codex-staging-repair-rbac \
+            --only-infra namespace-and-config,codex-staging-repair-rbac \
             --only-services codex
 
       - name: "Cleanup staging repair env on failure 🧹"
-        if: failure()
+        if: failure() || cancelled()
         env:
           SLOT: ${{ needs.create-staging-repair.outputs.slot }}
         run: |
@@ -187,7 +187,7 @@ jobs:
           codexctl "${ARGS[@]}"
 
       - name: "Cleanup staging repair env on failure 🧹"
-        if: failure()
+        if: failure() || cancelled()
         env:
           SLOT: ${{ needs.create-staging-repair.outputs.slot }}
         run: |
