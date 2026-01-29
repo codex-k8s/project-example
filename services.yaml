@@ -64,7 +64,7 @@ versions:
   django-backend: "0.1.1"
   chat-backend: "0.1.2"
   web-frontend: "0.1.2"
-  codex: "0.2.0"
+  codex: "0.2.1"
   codexctl: "latest"
   busybox: "1.37.0"
   http-echo: "0.2.3"
@@ -345,6 +345,7 @@ services:
             mountPath: "/workspace"
           - name: docker-sock
             hostPath: /var/run/docker.sock
+            hostPathType: Socket
             mountPath: /var/run/docker.sock
       staging_repair:
         hostMounts:
@@ -353,6 +354,7 @@ services:
             mountPath: "/workspace"
           - name: docker-sock
             hostPath: /var/run/docker.sock
+            hostPathType: Socket
             mountPath: /var/run/docker.sock
         dropKinds: ["Ingress"]
     hooks:
