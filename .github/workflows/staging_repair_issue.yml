@@ -110,7 +110,8 @@ jobs:
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-services codex-staging-repair
+            --only-infra codex-staging-repair-rbac \
+            --only-services codex
 
       - name: "Cleanup staging repair env on failure 🧹"
         if: failure()

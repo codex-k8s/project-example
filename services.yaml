@@ -177,6 +177,11 @@ infrastructure:
       - path: deploy/configmap.yaml
       - path: deploy/secret.yaml
 
+  - name: codex-staging-repair-rbac
+    when: '{{ eq .Env "staging_repair" }}'
+    manifests:
+      - path: deploy/codex/rbac-staging-repair.yaml
+
   - name: tls-issuer
     when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     manifests:
@@ -326,14 +331,20 @@ services:
       - path: deploy/codex/ingress-dev.yaml
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/codex'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "codex") }}'
-    when: '{{ eq .Env "ai" }}'
+      tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "staging_repair")) "staging" .Env) (index .Versions "codex") }}'
+    when: '{{ or (eq .Env "ai") (eq .Env "staging_repair") }}'
     overlays:
       ai:
         hostMounts:
           - name: code-src
             hostPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
             mountPath: "/workspace"
+      staging_repair:
+        hostMounts:
+          - name: code-src
+            hostPath: '{{ $stagingCodeRoot }}'
+            mountPath: "/workspace"
+        dropKinds: ["Ingress"]
     hooks:
       afterApply:
         - name: check-dev-host-ports
@@ -342,19 +353,3 @@ services:
         - name: reuse-dev-tls-secret
           when: '{{ eq .Env "ai" }}'
           use: codex.reuse-dev-tls-secret
-
-  - name: codex-staging-repair
-    manifests:
-      - path: deploy/codex/rbac-staging-repair.yaml
-      - path: deploy/codex/codex-deploy.yaml
-    image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/codex'
-      tagTemplate: '{{ printf "%s-%s" "staging" (index .Versions "codex") }}'
-    when: '{{ eq .Env "staging_repair" }}'
-    overlays:
-      staging_repair:
-        hostMounts:
-          - name: code-src
-            hostPath: '{{ $stagingCodeRoot }}'
-            mountPath: "/workspace"
-        dropKinds: ["Ingress"]

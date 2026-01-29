@@ -67,7 +67,7 @@
 - `environments.dev/staging/ai/staging_repair` — kubeconfig и registry;
 - `images` — сборку образов сервисов и Codex;
 - `infrastructure` — группы манифестов (`namespace-and-config`, `data-services`, `observability` и т.д.);
-- `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`, `codex-staging-repair`).
+- `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`).
 
 Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensure-slot/ensure-ready`,
 а метаданные/очистка выполняются через `codexctl manage-env` (set/comment/cleanup)

@@ -121,7 +121,8 @@ jobs:
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-services codex-staging-repair
+            --only-infra codex-staging-repair-rbac \
+            --only-services codex
 
       - name: "Run Codex staging repair review 🤖"
         env:
