@@ -58,6 +58,10 @@ jobs:
               namespace) NS="$value" ;;
             esac
           done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
+          if [ -z "$SLOT" ] || [ "$SLOT" = "0" ]; then
+            echo "error: failed to parse slot from codexctl output" >&2
+            exit 1
+          fi
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
 
@@ -181,6 +185,17 @@ jobs:
             ARGS+=(--issue "$ISSUE")
           fi
           codexctl "${ARGS[@]}"
+
+      - name: "Cleanup staging repair env on failure 🧹"
+        if: failure()
+        env:
+          SLOT: ${{ needs.create-staging-repair.outputs.slot }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLOT}" ]; then
+            exit 0
+          fi
+          codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true
 
       - name: "Auto-commit and push changes 📤"
         env:
