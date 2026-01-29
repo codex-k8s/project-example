@@ -1,6 +1,6 @@
 # {{- $codeRootBase := envOr "CODE_ROOT_BASE" "" -}}
-# {{- $slotCodeRoot := default (printf "%s/slots" .ProjectRoot) $codeRootBase -}}
-# {{- $stagingCodeRoot := default .ProjectRoot (ternary (ne $codeRootBase "") (printf "%s/staging/src" $codeRootBase) "") -}}
+# {{- $slotCodeRoot := default $codeRootBase (printf "%s/slots" .ProjectRoot) -}}
+# {{- $stagingCodeRoot := default (ternary (ne $codeRootBase "") (printf "%s/staging/src" $codeRootBase) "") .ProjectRoot -}}
 # {{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
 project: project-example
 

@@ -128,7 +128,6 @@ docker login
 
 Так как pod запускается от пользователя `runner` с UID/GID `1000`,
 нужно дать этому GID доступ к сокету Docker на хосте:
-
 ```bash
 sudo apt-get install -y acl
 sudo setfacl -m g:1000:rw /var/run/docker.sock
@@ -145,6 +144,7 @@ sudo systemctl edit docker
 sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
+
 
 Если UID/GID отличается от `1000`, задайте `CODEX_WORKSPACE_UID/GID`
 для pod’а codex и выдайте доступ к сокету соответствующей группе.
