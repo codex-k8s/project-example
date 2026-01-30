@@ -52,30 +52,23 @@ jobs:
           FOCUS="${FOCUS_ISSUE_NUMBER}"
           REPO="${GITHUB_REPOSITORY}"
 
-          OUT="$(codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}" --output kv)"
-          echo "$OUT"
+          codexctl plan resolve-root --issue "${FOCUS}" --repo "${REPO}"
 
-          ROOT=""
-          FOCUS_RESOLVED=""
-          while IFS='=' read -r key value; do
-            case "$key" in
-              root) ROOT="$value" ;;
-              focus) FOCUS_RESOLVED="$value" ;;
-            esac
-          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
-
-          if [ -z "${ROOT}" ] || [ "${ROOT}" = "0" ]; then
-            echo "error: unable to determine root planning issue for focus issue ${FOCUS}" >&2
+      - name: "Validate root issue 🧪"
+        env:
+          ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.root }}
+          FOCUS_ISSUE_NUMBER: ${{ steps.root_issue.outputs.focus }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ROOT_ISSUE_NUMBER}" ] || [ "${ROOT_ISSUE_NUMBER}" = "0" ]; then
+            echo "error: unable to determine root planning issue for focus issue ${FOCUS_ISSUE_NUMBER}" >&2
             exit 1
           fi
-
-          echo "ROOT_ISSUE_NUMBER=${ROOT}" >> "$GITHUB_OUTPUT"
-          echo "FOCUS_ISSUE_NUMBER=${FOCUS_RESOLVED}" >> "$GITHUB_OUTPUT"
 
       - name: "Resolve slot and namespace for root issue 📇"
         id: card
         env:
-          ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.ROOT_ISSUE_NUMBER }}
+          ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.root }}
           DEV_SLOTS_MAX:     ${{ vars.DEV_SLOTS_MAX }}
         run: |
           set -euo pipefail
@@ -86,38 +79,30 @@ jobs:
           echo "info: ensuring AI planning environment ready via codexctl (ensure-ready)" >&2
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --issue "${ROOT}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --output kv --vars "CODE_ROOT_BASE=${CODE_ROOT_BASE},DATA_ROOT=${DATA_ROOT}" )
+          ARGS=(ci ensure-ready --env ai --issue "${ROOT}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --vars "CODE_ROOT_BASE=${CODE_ROOT_BASE},DATA_ROOT=${DATA_ROOT}")
           if [ -n "${MAX}" ]; then
             ARGS+=(--max "${MAX}")
           fi
-          OUT="$(codexctl "${ARGS[@]}")"
-          echo "$OUT"
+          codexctl "${ARGS[@]}"
 
-          SLOT=""
-          NS=""
-          CREATED="false"
-          RECREATED="false"
-          while IFS='=' read -r key value; do
-            case "$key" in
-              slot) SLOT="$value" ;;
-              namespace) NS="$value" ;;
-              created) CREATED="$value" ;;
-              recreated) RECREATED="$value" ;;
-            esac
-          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
-
+      - name: "Compute env flags 🧮"
+        id: env_state
+        env:
+          CREATED: ${{ steps.card.outputs.created }}
+          RECREATED: ${{ steps.card.outputs.recreated }}
+          SLOT: ${{ steps.card.outputs.slot }}
+          NS: ${{ steps.card.outputs.namespace }}
+          ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.root }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLOT}" ] || [ -z "${NS}" ]; then
+            echo "error: cannot resolve slot/ns for root planning issue ${ROOT_ISSUE_NUMBER}" >&2
+            exit 1
+          fi
           NEW_ENV="false"
           if [ "${CREATED}" = "true" ] || [ "${RECREATED}" = "true" ]; then
             NEW_ENV="true"
           fi
-
-          if [ -z "${SLOT:-}" ] || [ -z "${NS:-}" ]; then
-            echo "error: cannot resolve slot/ns for root planning issue ${ROOT}" >&2
-            exit 1
-          fi
-
-          echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "NS=$NS"     >> "$GITHUB_OUTPUT"
           echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
 
       - name: "Run planning review agent via codexctl 🤖"
@@ -127,16 +112,16 @@ jobs:
           CODEX_GH_USERNAME:     ${{ vars.CODEX_GH_USERNAME }}
           OPENAI_API_KEY:        ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:      ${{ secrets.CONTEXT7_API_KEY }}
-          ROOT_ISSUE_NUMBER:     ${{ steps.root_issue.outputs.ROOT_ISSUE_NUMBER }}
-          FOCUS_ISSUE_NUMBER:    ${{ steps.root_issue.outputs.FOCUS_ISSUE_NUMBER }}
+          ROOT_ISSUE_NUMBER:     ${{ steps.root_issue.outputs.root }}
+          FOCUS_ISSUE_NUMBER:    ${{ steps.root_issue.outputs.focus }}
         run: |
           set -euo pipefail
 
           ROOT="${ROOT_ISSUE_NUMBER}"
           FOCUS="${FOCUS_ISSUE_NUMBER}"
-          SLOT_VAL="${{ steps.card.outputs.SLOT }}"
-          NS_VAL="${{ steps.card.outputs.NS }}"
-          NEW_ENV="${{ steps.card.outputs.NEW_ENV }}"
+          SLOT_VAL="${{ steps.card.outputs.slot }}"
+          NS_VAL="${{ steps.card.outputs.namespace }}"
+          NEW_ENV="${{ steps.env_state.outputs.NEW_ENV }}"
 
           KIND="plan_review"
           RESUME_FLAG="--resume"
@@ -146,13 +131,9 @@ jobs:
             VARS="FOCUS_ISSUE_NUMBER=${FOCUS},PROMPT_CONTINUATION=1,PROMPT_MODE=full"
           fi
 
-          ARGS=(prompt run --env ai --slot "${SLOT_VAL}" --kind "${KIND}" --lang ru)
-          if [ -n "$NS_VAL" ]; then
-            ARGS+=(--namespace "$NS_VAL")
-          fi
-          if [ -n "$ROOT" ]; then
-            ARGS+=(--issue "$ROOT")
-          fi
+          RUN_ARGS="${{ steps.card.outputs.codexctl_run_args }}"
+          read -r -a BASE_ARGS <<< "${RUN_ARGS}"
+          ARGS=(prompt run "${BASE_ARGS[@]}" --kind "${KIND}" --lang ru)
 
           ARGS+=(--vars "$VARS")
 

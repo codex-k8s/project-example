@@ -43,27 +43,11 @@ jobs:
           ISSUE="${{ github.event.issue.number }}"
           MAX="${{ vars.DEV_SLOTS_MAX }}"
 
-          ARGS=(ci ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}" --output kv)
+          ARGS=(ci ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}")
           if [ -n "$MAX" ]; then
             ARGS+=(--max "$MAX")
           fi
-
-          OUT="$(codexctl "${ARGS[@]}")"
-          echo "$OUT"
-          SLOT=""
-          NS=""
-          while IFS='=' read -r key value; do
-            case "$key" in
-              slot) SLOT="$value" ;;
-              namespace) NS="$value" ;;
-            esac
-          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
-          if [ -z "$SLOT" ] || [ "$SLOT" = "0" ]; then
-            echo "error: failed to parse slot from codexctl output" >&2
-            exit 1
-          fi
-          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "namespace=$NS" >> "$GITHUB_OUTPUT"
+          codexctl "${ARGS[@]}"
 
   deploy-ai-repair:
     needs: [create-ai-repair]

@@ -65,36 +65,30 @@ jobs:
 
           PR_NUMBER="${PR}"
           MAX="${DEV_SLOTS_MAX:-}"
-          ARGS=(ci ensure-slot --env ai-repair --pr "${PR_NUMBER}" --output kv)
+          ARGS=(ci ensure-slot --env ai-repair --pr "${PR_NUMBER}")
           if [ -n "${MAX}" ]; then
             ARGS+=(--max "${MAX}")
           fi
-          OUT="$(codexctl "${ARGS[@]}")"
-          echo "$OUT"
+          codexctl "${ARGS[@]}"
 
-          SLOT=""
-          NS=""
-          while IFS='=' read -r key value; do
-            case "$key" in
-              slot) SLOT="$value" ;;
-              namespace) NS="$value" ;;
-            esac
-          done < <(printf '%s\n' "$OUT" | sed -n 's/^\([a-zA-Z0-9_]\+\)=\(.*\)$/\1=\2/p')
-
+      - name: "Compute env flags 🧮"
+        id: env_state
+        env:
+          SLOT: ${{ steps.card.outputs.slot }}
+          NS: ${{ steps.card.outputs.namespace }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
           if [ -z "${SLOT:-}" ] || [ -z "${NS:-}" ]; then
             echo "error: cannot resolve slot/ns for PR ${PR_NUMBER}" >&2
             exit 1
           fi
-
           NEW_ENV="false"
           if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
             NEW_ENV="true"
           elif ! kubectl -n "${NS}" get deploy codex >/dev/null 2>&1; then
             NEW_ENV="true"
           fi
-
-          echo "SLOT=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "NS=$NS"     >> "$GITHUB_OUTPUT"
           echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
 
       - name: "Ensure staging repair env via codexctl 🚀"
@@ -112,7 +106,7 @@ jobs:
           SECRET_KEY:           ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
-          SLOT="${{ steps.card.outputs.SLOT }}"
+          SLOT="${{ steps.card.outputs.slot }}"
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
           codexctl ci apply \
@@ -132,9 +126,9 @@ jobs:
           CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          SLOT="${{ steps.card.outputs.SLOT }}"
-          NS="${{ steps.card.outputs.NS }}"
-          NEW_ENV="${{ steps.card.outputs.NEW_ENV }}"
+          SLOT="${{ steps.card.outputs.slot }}"
+          NS="${{ steps.card.outputs.namespace }}"
+          NEW_ENV="${{ steps.env_state.outputs.NEW_ENV }}"
           PR="${{ github.event.pull_request.number }}"
           KIND="ai-repair_review"
           RESUME_FLAG="--resume"
@@ -143,13 +137,15 @@ jobs:
             RESUME_FLAG=""
             VARS="PROMPT_CONTINUATION=1,PROMPT_MODE=full"
           fi
-          ARGS=(prompt run --env ai-repair --slot "${SLOT}" --kind "${KIND}" --lang ru)
+          RUN_ARGS="--env ai-repair --slot ${SLOT}"
           if [ -n "$NS" ]; then
-            ARGS+=(--namespace "$NS")
+            RUN_ARGS="${RUN_ARGS} --namespace ${NS}"
           fi
           if [ -n "$PR" ]; then
-            ARGS+=(--pr "$PR")
+            RUN_ARGS="${RUN_ARGS} --pr ${PR}"
           fi
+          read -r -a BASE_ARGS <<< "${RUN_ARGS}"
+          ARGS=(prompt run "${BASE_ARGS[@]}" --kind "${KIND}" --lang ru)
           if [ -n "$VARS" ]; then
             ARGS+=(--vars "$VARS")
           fi
@@ -160,7 +156,7 @@ jobs:
 
       - name: "Apply review changes and comment 💾"
         env:
-          SLOT:               ${{ steps.card.outputs.SLOT }}
+          SLOT:               ${{ steps.card.outputs.slot }}
           PR_NUMBER:          ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEX_GH_PAT:       ${{ secrets.CODEX_GH_PAT }}
@@ -174,9 +170,9 @@ jobs:
             --lang ru
 
       - name: "Cleanup staging repair env on failure 🧹"
-        if: (failure() || cancelled()) && steps.card.outputs.SLOT != ''
+        if: (failure() || cancelled()) && steps.card.outputs.slot != ''
         env:
-          SLOT: ${{ steps.card.outputs.SLOT }}
+          SLOT: ${{ steps.card.outputs.slot }}
         run: |
           set -euo pipefail
           codexctl manage-env cleanup --env ai-repair --slot "${SLOT}" --with-configmap || true
