@@ -50,7 +50,7 @@ REGISTRY_HOST=localhost:32000 ./codexctl images build  --env "$ENV"
 - `data-services` — PostgreSQL и Redis (`deploy/postgres.service.yaml`, `deploy/redis.service.yaml`);
 - `observability` — Jaeger (`deploy/jaeger.yaml`).
 
-Хранение данных выполняется в `hostPath` в рамках `DATA_ROOT`
+Хранение данных выполняется в `hostPath` в рамках `CODEXCTL_DATA_ROOT`
 (см. env‑переменные и hook `ensure-local-data-dirs`).
 
 ## Сервисы
