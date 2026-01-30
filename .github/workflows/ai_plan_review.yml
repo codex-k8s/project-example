@@ -77,26 +77,6 @@ jobs:
           set -euo pipefail
           codexctl ci ensure-ready
 
-      - name: "Compute env flags 🧮"
-        id: env_state
-        env:
-          CREATED: ${{ steps.card.outputs.created }}
-          RECREATED: ${{ steps.card.outputs.recreated }}
-          CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}
-          CODEXCTL_NAMESPACE: ${{ steps.card.outputs.namespace }}
-          CODEXCTL_ROOT_ISSUE_NUMBER: ${{ steps.root_issue.outputs.root }}
-        run: |
-          set -euo pipefail
-          if [ -z "${CODEXCTL_SLOT}" ] || [ -z "${CODEXCTL_NAMESPACE}" ]; then
-            echo "error: cannot resolve slot/ns for root planning issue ${CODEXCTL_ROOT_ISSUE_NUMBER}" >&2
-            exit 1
-          fi
-          NEW_ENV="false"
-          if [ "${CREATED}" = "true" ] || [ "${RECREATED}" = "true" ]; then
-            NEW_ENV="true"
-          fi
-          echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
-
       - name: "Run planning review agent via codexctl 🤖"
         env:
           GITHUB_RUN_ID:           ${{ github.run_id }}
@@ -105,18 +85,10 @@ jobs:
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
           CODEXCTL_ISSUE_NUMBER:   ${{ steps.root_issue.outputs.root }}
           CODEXCTL_FOCUS_ISSUE_NUMBER: ${{ steps.root_issue.outputs.focus }}
+          CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '1' || '0' }}
+          CODEXCTL_RESUME:         ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '0' || '1' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-
-          NEW_ENV="${{ steps.env_state.outputs.NEW_ENV }}"
-
-          if [ "${NEW_ENV}" = "true" ]; then
-            export CODEXCTL_PROMPT_CONTINUATION=1
-            export CODEXCTL_PROMPT_MODE=full
-          else
-            export CODEXCTL_RESUME=true
-          fi
-
           codexctl prompt run --kind plan_review

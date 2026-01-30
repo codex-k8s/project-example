@@ -32,54 +32,32 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
-          REPO: ${{ github.repository }}
+          CODEXCTL_BRANCH: ${{ github.event.pull_request.head.ref }}
+          CODEXCTL_REPO: ${{ github.repository }}
           CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_DELETE_BRANCH: true
         run: |
           set -euo pipefail
-          export CODEXCTL_ENV=ai
-          codexctl manage-env cleanup || true
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          if echo "$BRANCH" | grep -q '^codex/issue-'; then
-            gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
-          fi
-          if echo "$BRANCH" | grep -q '^codex/ai-repair-'; then
-            export CODEXCTL_ENV=ai-repair
-            codexctl manage-env cleanup || true
-            gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
-          fi
+          codexctl manage-env cleanup-pr
 
       - name: "Close linked Issue after merge ✅"
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         env:
-          REPO: ${{ github.repository }}
+          CODEXCTL_BRANCH: ${{ github.event.pull_request.head.ref }}
+          CODEXCTL_REPO: ${{ github.repository }}
           CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_CLOSE_ISSUE: true
         run: |
           set -euo pipefail
-          BRANCH="${{ github.event.pull_request.head.ref }}"
-          if [[ "$BRANCH" =~ ^codex/issue-([0-9]+)$ ]]; then
-            CODEXCTL_ISSUE_NUMBER="${BASH_REMATCH[1]}"
-            printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-            gh issue close "${CODEXCTL_ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
-          fi
-          if [[ "$BRANCH" =~ ^codex/ai-repair-([0-9]+)$ ]]; then
-            CODEXCTL_ISSUE_NUMBER="${BASH_REMATCH[1]}"
-            printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-            gh issue close "${CODEXCTL_ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
-          fi
+          codexctl manage-env close-linked-issue
 
       - name: "Cleanup for Issue closed 🧹"
         if: github.event_name == 'issues'
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          REPO: ${{ github.repository }}
+          CODEXCTL_REPO: ${{ github.repository }}
           CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_DELETE_BRANCH: true
         run: |
           set -euo pipefail
-          export CODEXCTL_ENV=ai
-          codexctl manage-env cleanup || true
-          BRANCH="codex/issue-${CODEXCTL_ISSUE_NUMBER}"
-          gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
-          export CODEXCTL_ENV=ai-repair
-          codexctl manage-env cleanup || true
-          BRANCH_REPAIR="codex/ai-repair-${CODEXCTL_ISSUE_NUMBER}"
-          gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH_REPAIR}" || true
+          codexctl manage-env cleanup-issue

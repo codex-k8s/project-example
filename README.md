@@ -347,6 +347,7 @@ mkdir -p ~/codex/envs ~/codex/data
 - `CODEXCTL_DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
 - `CODEXCTL_ALLOWED_USERS` — список GitHub‑логинов, которым разрешено запускать AI‑воркфлоу (например, `user1,user2`), добавляется как Repository Variable.
 - `CODEXCTL_GH_USERNAME` — GitHub‑логин бота, добавляется как Repository Variable.
+- `CODEXCTL_GH_EMAIL` — email бота для git‑коммитов (например, `codex-bot@example.com`), добавляется как Repository Variable.
 - `CODEXCTL_VERSION` — версия `codexctl` для установки в воркфлоу (например, `v0.3.1`), если не задана — используется `latest`.
 - `LETSENCRYPT_EMAIL` — email для регистрации ACME аккаунта в Let’s Encrypt (например, `admin@example-domain.ru`).
 
@@ -443,7 +444,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
    - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/staging/src`;
    - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-staging`;
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
-4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml`.
+4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `CODEXCTL_NEW_ENV` и `CODEXCTL_ENV_READY` для выбора continuation/resume).
 
 ## 10. Флоу review/fix для PR
 
