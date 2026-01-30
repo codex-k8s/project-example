@@ -14,6 +14,9 @@ env:
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_PR_NUMBER:      ${{ github.event.pull_request.number }}
+  CODEXCTL_BRANCH:         ${{ github.event.pull_request.head.ref }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-pr-${{ github.event.pull_request.number }}
@@ -47,10 +50,9 @@ jobs:
       - name: "Ensure slot and namespace for PR 📇"
         id: card
         env:
-          CODEXCTL_PR_NUMBER:     ${{ github.event.pull_request.number }}
           CODEXCTL_SOURCE:        .
-          CODEXCTL_PREPARE_IMAGES: true
-          CODEXCTL_APPLY:          true
+          CODEXCTL_PREPARE_IMAGES: 1
+          CODEXCTL_APPLY:          1
         run: |
           set -euo pipefail
           codexctl ci ensure-ready
@@ -61,7 +63,6 @@ jobs:
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
-          CODEXCTL_PR_NUMBER:      ${{ github.event.pull_request.number }}
           CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '1' || '0' }}
           CODEXCTL_RESUME:         ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '0' || '1' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -73,8 +74,6 @@ jobs:
       - name: "Apply review changes and comment 💾"
         env:
           CODEXCTL_SLOT:        ${{ steps.card.outputs.slot }}
-          CODEXCTL_PR_NUMBER:   ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY:    ${{ github.repository }}
           CODEXCTL_GH_PAT:      ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail

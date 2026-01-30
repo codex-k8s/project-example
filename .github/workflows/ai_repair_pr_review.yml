@@ -14,6 +14,9 @@ env:
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_PR_NUMBER:      ${{ github.event.pull_request.number }}
+  CODEXCTL_BRANCH:         ${{ github.event.pull_request.head.ref }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-repair-pr-${{ github.event.pull_request.number }}
@@ -59,8 +62,6 @@ jobs:
 
       - name: "Resolve slot and namespace for PR 📇"
         id: card
-        env:
-          CODEXCTL_PR_NUMBER:     ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           codexctl ci ensure-ready
@@ -70,8 +71,8 @@ jobs:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
-          CODEXCTL_PREFLIGHT:      true
-          CODEXCTL_WAIT:           true
+          CODEXCTL_PREFLIGHT:      1
+          CODEXCTL_WAIT:           1
           CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
           CODEXCTL_ONLY_SERVICES:  codex
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -90,7 +91,6 @@ jobs:
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
-          CODEXCTL_PR_NUMBER:      ${{ github.event.pull_request.number }}
           CODEXCTL_PROMPT_CONTINUATION: ${{ (steps.card.outputs.CODEXCTL_NEW_ENV == 'true' || steps.card.outputs.CODEXCTL_ENV_READY != 'true') && '1' || '0' }}
           CODEXCTL_RESUME:         ${{ (steps.card.outputs.CODEXCTL_NEW_ENV == 'true' || steps.card.outputs.CODEXCTL_ENV_READY != 'true') && '0' || '1' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -102,8 +102,6 @@ jobs:
       - name: "Apply review changes and comment 💾"
         env:
           CODEXCTL_SLOT:      ${{ steps.card.outputs.slot }}
-          CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
@@ -113,7 +111,7 @@ jobs:
         if: (failure() || cancelled()) && steps.card.outputs.slot != ''
         env:
           CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_WITH_CONFIGMAP: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true

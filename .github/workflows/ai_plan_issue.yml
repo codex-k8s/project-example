@@ -14,6 +14,7 @@ env:
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-plan-${{ github.event.issue.number }}
@@ -70,10 +71,10 @@ jobs:
           CODEXCTL_SLOT:           ${{ needs.create-ai-plan.outputs.slot }}
           CODEXCTL_ISSUE_NUMBER:   ${{ github.event.issue.number }}
           CODEXCTL_SOURCE:         .
-          CODEXCTL_PREPARE_IMAGES: true
-          CODEXCTL_APPLY:          true
-          CODEXCTL_FORCE_APPLY:    true
-          CODEXCTL_WAIT_SOFT_FAIL: true
+          CODEXCTL_PREPARE_IMAGES: 1
+          CODEXCTL_APPLY:          1
+          CODEXCTL_FORCE_APPLY:    1
+          CODEXCTL_WAIT_SOFT_FAIL: 1
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
           POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
@@ -130,7 +131,7 @@ jobs:
       - name: "Cleanup AI plan slot on failure (global) 🧹"
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_WITH_CONFIGMAP: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true

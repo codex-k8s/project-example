@@ -14,6 +14,7 @@ env:
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-plan-review-${{ github.event.issue.number }}
@@ -49,7 +50,6 @@ jobs:
         id: root_issue
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          CODEXCTL_REPO:         ${{ github.repository }}
           CODEXCTL_GH_PAT:       ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
@@ -71,8 +71,8 @@ jobs:
         env:
           CODEXCTL_ISSUE_NUMBER:   ${{ steps.root_issue.outputs.root }}
           CODEXCTL_SOURCE:         .
-          CODEXCTL_PREPARE_IMAGES: true
-          CODEXCTL_APPLY:          true
+          CODEXCTL_PREPARE_IMAGES: 1
+          CODEXCTL_APPLY:          1
         run: |
           set -euo pipefail
           codexctl ci ensure-ready

@@ -15,6 +15,7 @@ env:
   CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-repair-${{ github.event.issue.number }}
@@ -63,10 +64,6 @@ jobs:
       - name: "Sync staging sources 📂"
         run: |
           set -euo pipefail
-          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
-            exit 1
-          fi
           STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
           mkdir -p "${STAGING_SRC}"
           rsync -a --delete --exclude '.cache' ./ "${STAGING_SRC}/"
@@ -76,8 +73,8 @@ jobs:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_PREFLIGHT:      true
-          CODEXCTL_WAIT:           true
+          CODEXCTL_PREFLIGHT:      1
+          CODEXCTL_WAIT:           1
           CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
           CODEXCTL_ONLY_SERVICES:  codex
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -94,7 +91,7 @@ jobs:
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_WITH_CONFIGMAP: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true
@@ -146,17 +143,13 @@ jobs:
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${CODEXCTL_SLOT}" ] || [ "${CODEXCTL_SLOT}" = "0" ]; then
-            echo "error: CODEXCTL_SLOT is empty or 0" >&2
-            exit 1
-          fi
           codexctl prompt run --kind ai-repair_issue
 
       - name: "Cleanup staging repair env on failure 🧹"
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_WITH_CONFIGMAP: 1
         run: |
           set -euo pipefail
           if [ -z "${CODEXCTL_SLOT}" ]; then
@@ -195,7 +188,6 @@ jobs:
         id: detect_pr
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
@@ -227,11 +219,10 @@ jobs:
         env:
           CODEXCTL_SLOT:      ${{ needs.create-ai-repair.outputs.slot }}
           CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
-          GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
           BODY_FILE="$(mktemp)"
           codexctl manage-env comment > "${BODY_FILE}"
           printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}" || true
+          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${CODEXCTL_REPO}" --body-file "${BODY_FILE}" || true

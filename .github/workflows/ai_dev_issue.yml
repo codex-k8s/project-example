@@ -15,6 +15,7 @@ env:
   CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
   group: ai-issue-${{ github.event.issue.number }}
@@ -69,10 +70,10 @@ jobs:
           CODEXCTL_SLOT:           ${{ needs.create-ai.outputs.slot }}
           CODEXCTL_ISSUE_NUMBER:   ${{ github.event.issue.number }}
           CODEXCTL_SOURCE:         .
-          CODEXCTL_PREPARE_IMAGES: true
-          CODEXCTL_APPLY:          true
-          CODEXCTL_FORCE_APPLY:    true
-          CODEXCTL_WAIT_SOFT_FAIL: true
+          CODEXCTL_PREPARE_IMAGES: 1
+          CODEXCTL_APPLY:          1
+          CODEXCTL_FORCE_APPLY:    1
+          CODEXCTL_WAIT_SOFT_FAIL: 1
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
           POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
@@ -154,7 +155,6 @@ jobs:
         env:
           CODEXCTL_SLOT:         ${{ needs.create-ai.outputs.slot }}
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GITHUB_REPOSITORY:     ${{ github.repository }}
           CODEXCTL_GH_PAT:       ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
@@ -185,7 +185,6 @@ jobs:
         env:
           CODEXCTL_SLOT:      ${{ needs.create-ai.outputs.slot }}
           CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
-          GITHUB_REPOSITORY:  ${{ github.repository }}
           CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
@@ -193,7 +192,7 @@ jobs:
           codexctl manage-env comment > "${BODY_FILE}"
 
           printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}"
+          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${CODEXCTL_REPO}" --body-file "${BODY_FILE}"
 
   cleanup-ai:
     needs: [create-ai, deploy-ai, run-codex]
@@ -214,7 +213,7 @@ jobs:
       - name: "Cleanup AI slot on failure (global) 🧹"
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_WITH_CONFIGMAP: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true

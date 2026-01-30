@@ -10,6 +10,9 @@ env:
   CODEXCTL_DATA_ROOT:     ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID: ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID: ${{ vars.CODEXCTL_WORKSPACE_GID }}
+  CODEXCTL_PR_NUMBER:     ${{ github.event.pull_request.number || '' }}
+  CODEXCTL_BRANCH:        ${{ github.event.pull_request.head.ref || '' }}
+  CODEXCTL_REPO:          ${{ github.repository }}
 
 concurrency:
   group: ai-cleanup-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}
@@ -31,11 +34,8 @@ jobs:
       - name: "Cleanup for PR closed 🧹"
         if: github.event_name == 'pull_request'
         env:
-          CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
-          CODEXCTL_BRANCH: ${{ github.event.pull_request.head.ref }}
-          CODEXCTL_REPO: ${{ github.repository }}
-          CODEXCTL_WITH_CONFIGMAP: true
-          CODEXCTL_DELETE_BRANCH: true
+          CODEXCTL_WITH_CONFIGMAP: 1
+          CODEXCTL_DELETE_BRANCH: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup-pr
@@ -43,10 +43,8 @@ jobs:
       - name: "Close linked Issue after merge ✅"
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         env:
-          CODEXCTL_BRANCH: ${{ github.event.pull_request.head.ref }}
-          CODEXCTL_REPO: ${{ github.repository }}
           CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
-          CODEXCTL_CLOSE_ISSUE: true
+          CODEXCTL_CLOSE_ISSUE: 1
         run: |
           set -euo pipefail
           codexctl manage-env close-linked-issue
@@ -55,9 +53,8 @@ jobs:
         if: github.event_name == 'issues'
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          CODEXCTL_REPO: ${{ github.repository }}
-          CODEXCTL_WITH_CONFIGMAP: true
-          CODEXCTL_DELETE_BRANCH: true
+          CODEXCTL_WITH_CONFIGMAP: 1
+          CODEXCTL_DELETE_BRANCH: 1
         run: |
           set -euo pipefail
           codexctl manage-env cleanup-issue
