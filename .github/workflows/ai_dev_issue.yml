@@ -77,10 +77,6 @@ jobs:
           CODEXCTL_WAIT_SOFT_FAIL: true
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
-          POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
-          REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
-          SECRET_KEY:              ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
           codexctl ci ensure-ready
@@ -154,23 +150,11 @@ jobs:
       - name: "Detect PR for issue branch 🔎"
         id: detect_pr
         env:
-          CODEXCTL_SLOT:         ${{ needs.create-ai.outputs.slot }}
-          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEXCTL_BRANCH:       codex/issue-${{ github.event.issue.number }}
           CODEXCTL_GH_PAT:       ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          BRANCH="codex/issue-${CODEXCTL_ISSUE_NUMBER}"
-          cd "${CODEXCTL_CODE_ROOT_BASE}/${CODEXCTL_SLOT}/src"
-
-          printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-
-          PRN="$(gh pr list --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)"
-          if [ -z "${PRN}" ]; then
-            echo "warn: PR not found for branch ${BRANCH}" >&2
-            exit 0
-          fi
-
-          echo "codexctl_pr_number=${PRN}" >> "$GITHUB_OUTPUT"
+          codexctl pr detect
 
       - name: "Attach PR number to slot 🏷️"
         if: steps.detect_pr.outputs.codexctl_pr_number != ''

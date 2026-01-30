@@ -79,10 +79,6 @@ jobs:
           CODEXCTL_WAIT_SOFT_FAIL: true
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
-          POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
-          REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
-          SECRET_KEY:              ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
           codexctl ci ensure-ready
