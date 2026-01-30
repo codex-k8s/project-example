@@ -63,8 +63,8 @@
 `services.yaml` описывает:
 
 - `project: project-example`;
-- `baseDomain.dev/staging/ai/staging_repair` — домены;
-- `environments.dev/staging/ai/staging_repair` — kubeconfig и registry;
+- `baseDomain.dev/staging/ai` — домены;
+- `environments.dev/staging/ai` — kubeconfig и registry;
 - `images` — сборку образов сервисов и Codex;
 - `infrastructure` — группы манифестов (`namespace-and-config`, `data-services`, `observability` и т.д.);
 - `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`).
@@ -75,7 +75,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 Режимы:
 - `[ai-dev]` — обычная разработка агентом;
 - `[ai-plan]` — планирование задач агентом;
-- `[staging-repair]` — восстановление стейджинга агентом.
+- `[ai-repair]` — восстановление стейджинга агентом.
 
 ## Структура директорий (основное)
 
@@ -99,7 +99,7 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 │   └── codex/
 │       ├── Dockerfile
 │       ├── rbac.yaml
-│       ├── rbac-staging-repair.yaml
+│       ├── rbac-ai-repair.yaml
 │       ├── codex-deploy.yaml
 │       └── ingress-dev.yaml
 ├── services/

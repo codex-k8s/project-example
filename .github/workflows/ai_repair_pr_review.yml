@@ -9,7 +9,7 @@ env:
   CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
 
 concurrency:
-  group: staging-repair-pr-${{ github.event.pull_request.number }}
+  group: ai-repair-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
     name: "Staging repair review run 🤖"
     if: >-
       github.event.review.state == 'changes_requested' &&
-      startsWith(github.event.pull_request.head.ref, 'codex/staging-repair-') &&
+      startsWith(github.event.pull_request.head.ref, 'codex/ai-repair-') &&
       contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging
@@ -65,7 +65,7 @@ jobs:
 
           PR_NUMBER="${PR}"
           MAX="${DEV_SLOTS_MAX:-}"
-          ARGS=(ci ensure-slot --env staging_repair --pr "${PR_NUMBER}" --output kv)
+          ARGS=(ci ensure-slot --env ai-repair --pr "${PR_NUMBER}" --output kv)
           if [ -n "${MAX}" ]; then
             ARGS+=(--max "${MAX}")
           fi
@@ -116,11 +116,11 @@ jobs:
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
           codexctl ci apply \
-            --env staging_repair \
+            --env ai-repair \
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-infra namespace-and-config,codex-staging-repair-rbac \
+            --only-infra namespace-and-config,codex-ai-repair-rbac \
             --only-services codex
 
       - name: "Run Codex staging repair review 🤖"
@@ -136,14 +136,14 @@ jobs:
           NS="${{ steps.card.outputs.NS }}"
           NEW_ENV="${{ steps.card.outputs.NEW_ENV }}"
           PR="${{ github.event.pull_request.number }}"
-          KIND="staging_repair_review"
+          KIND="ai-repair_review"
           RESUME_FLAG="--resume"
           VARS=""
           if [ "${NEW_ENV}" = "true" ]; then
             RESUME_FLAG=""
             VARS="PROMPT_CONTINUATION=1,PROMPT_MODE=full"
           fi
-          ARGS=(prompt run --env staging_repair --slot "${SLOT}" --kind "${KIND}" --lang ru)
+          ARGS=(prompt run --env ai-repair --slot "${SLOT}" --kind "${KIND}" --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
@@ -167,7 +167,7 @@ jobs:
         run: |
           set -euo pipefail
           codexctl pr review-apply \
-            --env staging_repair \
+            --env ai-repair \
             --slot "${SLOT}" \
             --pr "${PR_NUMBER}" \
             --code-root-base "${CODE_ROOT_BASE}" \
@@ -179,4 +179,4 @@ jobs:
           SLOT: ${{ steps.card.outputs.SLOT }}
         run: |
           set -euo pipefail
-          codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true
+          codexctl manage-env cleanup --env ai-repair --slot "${SLOT}" --with-configmap || true

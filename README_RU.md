@@ -12,7 +12,7 @@
   - деплой стейджинга по push в `main`;
   - планирование задач по метке `[ai-plan]`;
   - разработка с агентом по метке `[ai-dev]`;
-  - восстановление стейджинга агентом по метке `[staging-repair]` (если что‑то сломалось);
+  - восстановление стейджинга агентом по метке `[ai-repair]` (если что‑то сломалось);
   - review/fix по ревью PR.
 
 ## 1. Подготовка VPS (Ubuntu 24.04)
@@ -436,13 +436,13 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 ## 9. Флоу восстановления стейджинга
 
 1. Создайте Issue с описанием проблемы стейджинга.
-2. Повесьте метку `[staging-repair]`.
-3. Запустится workflow `staging_repair_issue.yml`:
-   - выделит слот `staging_repair`;
+2. Повесьте метку `[ai-repair]`.
+3. Запустится workflow `ai_repair_issue.yml`:
+   - выделит слот `ai-repair`;
    - синхронизирует исходники в `${CODE_ROOT_BASE}/staging/src`;
    - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-staging`;
-   - запустит агента `prompt run --kind staging_repair_issue --lang ru`.
-4. Для PR с правками staging‑ремонта ревью запускается через `staging_repair_pr_review.yml`.
+   - запустит агента `prompt run --kind ai-repair_issue --lang ru`.
+4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml`.
 
 ## 10. Флоу review/fix для PR
 

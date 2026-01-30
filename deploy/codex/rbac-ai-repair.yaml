@@ -66,7 +66,7 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: codex-staging-repair-read
+  name: codex-ai-repair-read
 rules:
 - apiGroups: [""]
   resources: ["namespaces", "configmaps", "secrets"]
@@ -75,7 +75,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: codex-staging-repair-read-binding
+  name: codex-ai-repair-read-binding
 subjects:
 - kind: ServiceAccount
   name: codex-sa
@@ -83,4 +83,4 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: codex-staging-repair-read
+  name: codex-ai-repair-read

@@ -9,14 +9,14 @@ env:
   CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
 
 concurrency:
-  group: staging-repair-${{ github.event.issue.number }}
+  group: ai-repair-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
-  create-staging-repair:
+  create-ai-repair:
     name: "Allocate slot 🧩"
     if: >-
-      github.event.label.name == '[staging-repair]' &&
+      github.event.label.name == '[ai-repair]' &&
       contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     timeout-minutes: 360
@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          ENV_NAME="staging_repair"
+          ENV_NAME="ai-repair"
           ISSUE="${{ github.event.issue.number }}"
           MAX="${{ vars.DEV_SLOTS_MAX }}"
 
@@ -65,8 +65,8 @@ jobs:
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
           echo "namespace=$NS" >> "$GITHUB_OUTPUT"
 
-  deploy-staging-repair:
-    needs: [create-staging-repair]
+  deploy-ai-repair:
+    needs: [create-ai-repair]
     name: "Deploy staging repair env 🚀"
     runs-on: self-hosted
     environment: staging
@@ -106,27 +106,27 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          SLOT="${{ needs.create-staging-repair.outputs.slot }}"
+          SLOT="${{ needs.create-ai-repair.outputs.slot }}"
           export CODEX_WORKSPACE_UID="$(id -u)"
           export CODEX_WORKSPACE_GID="$(id -g)"
           codexctl ci apply \
-            --env staging_repair \
+            --env ai-repair \
             --slot "${SLOT}" \
             --preflight \
             --wait \
-            --only-infra namespace-and-config,codex-staging-repair-rbac \
+            --only-infra namespace-and-config,codex-ai-repair-rbac \
             --only-services codex
 
       - name: "Cleanup staging repair env on failure 🧹"
         if: failure() || cancelled()
         env:
-          SLOT: ${{ needs.create-staging-repair.outputs.slot }}
+          SLOT: ${{ needs.create-ai-repair.outputs.slot }}
         run: |
           set -euo pipefail
-          codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true
+          codexctl manage-env cleanup --env ai-repair --slot "${SLOT}" --with-configmap || true
 
   run-codex:
-    needs: [create-staging-repair, deploy-staging-repair]
+    needs: [create-ai-repair, deploy-ai-repair]
     name: "Run staging repair agent 🤖"
     runs-on: self-hosted
     environment: staging
@@ -161,7 +161,7 @@ jobs:
           cd "${WORKDIR}"
           git config user.name "codex-bot"
           git config user.email "codex-bot@example.com"
-          git checkout -b "codex/staging-repair-${ISSUE_NUMBER}" || git checkout "codex/staging-repair-${ISSUE_NUMBER}"
+          git checkout -b "codex/ai-repair-${ISSUE_NUMBER}" || git checkout "codex/ai-repair-${ISSUE_NUMBER}"
         shell: bash
 
       - name: "Run Codex staging repair agent 🤖"
@@ -174,14 +174,14 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          SLOT="${{ needs.create-staging-repair.outputs.slot }}"
-          NS="${{ needs.create-staging-repair.outputs.namespace }}"
+          SLOT="${{ needs.create-ai-repair.outputs.slot }}"
+          NS="${{ needs.create-ai-repair.outputs.namespace }}"
           ISSUE="${{ github.event.issue.number }}"
           if [ -z "${SLOT}" ] || [ "${SLOT}" = "0" ]; then
             echo "error: SLOT is empty or 0" >&2
             exit 1
           fi
-          ARGS=(prompt run --env staging_repair --slot "${SLOT}" --kind staging_repair_issue --lang ru)
+          ARGS=(prompt run --env ai-repair --slot "${SLOT}" --kind ai-repair_issue --lang ru)
           if [ -n "$NS" ]; then
             ARGS+=(--namespace "$NS")
           fi
@@ -193,13 +193,13 @@ jobs:
       - name: "Cleanup staging repair env on failure 🧹"
         if: failure() || cancelled()
         env:
-          SLOT: ${{ needs.create-staging-repair.outputs.slot }}
+          SLOT: ${{ needs.create-ai-repair.outputs.slot }}
         run: |
           set -euo pipefail
           if [ -z "${SLOT}" ]; then
             exit 0
           fi
-          codexctl manage-env cleanup --env staging_repair --slot "${SLOT}" --with-configmap || true
+          codexctl manage-env cleanup --env ai-repair --slot "${SLOT}" --with-configmap || true
 
       - name: "Auto-commit and push changes 📤"
         env:
@@ -210,7 +210,7 @@ jobs:
           WORKDIR="${CODE_ROOT_BASE}/staging/src"
           cd "${WORKDIR}"
 
-          BRANCH="codex/staging-repair-${ISSUE}"
+          BRANCH="codex/ai-repair-${ISSUE}"
           if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
             git checkout "$BRANCH"
           fi
@@ -238,7 +238,7 @@ jobs:
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          BRANCH="codex/staging-repair-${ISSUE_NUMBER}"
+          BRANCH="codex/ai-repair-${ISSUE_NUMBER}"
           WORKDIR="${CODE_ROOT_BASE}/staging/src"
           cd "${WORKDIR}"
 
@@ -255,17 +255,17 @@ jobs:
       - name: "Attach PR number to slot 🏷️"
         if: steps.detect_pr.outputs.PR_NUMBER != ''
         env:
-          SLOT: ${{ needs.create-staging-repair.outputs.slot }}
+          SLOT: ${{ needs.create-ai-repair.outputs.slot }}
           PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
         run: |
           set -euo pipefail
           codexctl --help >/dev/null
-          codexctl manage-env set --env staging_repair --slot "${SLOT}" --pr "${PR_NUMBER}"
+          codexctl manage-env set --env ai-repair --slot "${SLOT}" --pr "${PR_NUMBER}"
 
       - name: "Comment to PR with env links 🔗"
         if: steps.detect_pr.outputs.PR_NUMBER != ''
         env:
-          SLOT: ${{ needs.create-staging-repair.outputs.slot }}
+          SLOT: ${{ needs.create-ai-repair.outputs.slot }}
           PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
@@ -273,6 +273,6 @@ jobs:
           set -euo pipefail
           codexctl --help >/dev/null
           BODY_FILE="$(mktemp)"
-          codexctl manage-env comment --env staging_repair --slot "${SLOT}" --lang ru > "${BODY_FILE}"
+          codexctl manage-env comment --env ai-repair --slot "${SLOT}" --lang ru > "${BODY_FILE}"
           printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
           gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}" || true
