@@ -5,8 +5,15 @@ on:
     types: [submitted]
 
 env:
-  AI_ALLOWED_USERS: ${{ vars.AI_ALLOWED_USERS }}
-  CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+  CODEXCTL_ALLOWED_USERS:  ${{ vars.CODEXCTL_ALLOWED_USERS }}
+  CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_ENV:            ai-repair
+  CODEXCTL_LANG:           ${{ vars.CODEXCTL_LANG }}
+  CODEXCTL_DEV_SLOTS_MAX:  ${{ vars.CODEXCTL_DEV_SLOTS_MAX }}
+  CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
+  CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
+  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
+  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
 
 concurrency:
   group: ai-repair-pr-${{ github.event.pull_request.number }}
@@ -18,15 +25,12 @@ jobs:
     if: >-
       github.event.review.state == 'changes_requested' &&
       startsWith(github.event.pull_request.head.ref, 'codex/ai-repair-') &&
-      contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
+      contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     environment: staging
     env:
-      CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
-      CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-      DATA_ROOT:            ${{ vars.DATA_ROOT }}
+      CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
       GITHUB_RUN_ID:        ${{ github.run_id }}
-      CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
       KUBECONFIG:           /home/runner/.kube/microk8s.config
       OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
       CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
@@ -39,140 +43,102 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref:   ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
           fetch-depth: 0
 
       - name: "Sync staging sources 📂"
-        env:
-          CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
         run: |
           set -euo pipefail
-          if [ -z "${CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODE_ROOT_BASE is not set" >&2
+          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
+            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
             exit 1
           fi
-          STAGING_SRC="${CODE_ROOT_BASE}/staging/src"
+          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
           mkdir -p "${STAGING_SRC}"
           rsync -a --delete --exclude '.cache' ./ "${STAGING_SRC}/"
 
       - name: "Resolve slot and namespace for PR 📇"
         id: card
         env:
-          PR: ${{ github.event.pull_request.number }}
-          DEV_SLOTS_MAX: ${{ vars.DEV_SLOTS_MAX }}
+          CODEXCTL_PR_NUMBER:     ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-
-          PR_NUMBER="${PR}"
-          MAX="${DEV_SLOTS_MAX:-}"
-          ARGS=(ci ensure-slot --env ai-repair --pr "${PR_NUMBER}")
-          if [ -n "${MAX}" ]; then
-            ARGS+=(--max "${MAX}")
-          fi
-          codexctl "${ARGS[@]}"
+          codexctl ci ensure-slot
 
       - name: "Compute env flags 🧮"
         id: env_state
         env:
-          SLOT: ${{ steps.card.outputs.slot }}
-          NS: ${{ steps.card.outputs.namespace }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}
+          CODEXCTL_NAMESPACE: ${{ steps.card.outputs.namespace }}
+          CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          if [ -z "${SLOT:-}" ] || [ -z "${NS:-}" ]; then
-            echo "error: cannot resolve slot/ns for PR ${PR_NUMBER}" >&2
+          if [ -z "${CODEXCTL_SLOT:-}" ] || [ -z "${CODEXCTL_NAMESPACE:-}" ]; then
+            echo "error: cannot resolve slot/ns for PR ${CODEXCTL_PR_NUMBER}" >&2
             exit 1
           fi
           NEW_ENV="false"
-          if ! kubectl get ns "${NS}" >/dev/null 2>&1; then
+          if ! kubectl get ns "${CODEXCTL_NAMESPACE}" >/dev/null 2>&1; then
             NEW_ENV="true"
-          elif ! kubectl -n "${NS}" get deploy codex >/dev/null 2>&1; then
+          elif ! kubectl -n "${CODEXCTL_NAMESPACE}" get deploy codex >/dev/null 2>&1; then
             NEW_ENV="true"
           fi
           echo "NEW_ENV=$NEW_ENV" >> "$GITHUB_OUTPUT"
 
       - name: "Ensure staging repair env via codexctl 🚀"
         env:
-          GITHUB_RUN_ID:        ${{ github.run_id }}
-          CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
-          OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
-          CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
-          CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
-          DATA_ROOT:            ${{ vars.DATA_ROOT }}
-          POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
-          REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
-          SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+          GITHUB_RUN_ID:           ${{ github.run_id }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
+          CODEXCTL_PREFLIGHT:      true
+          CODEXCTL_WAIT:           true
+          CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
+          CODEXCTL_ONLY_SERVICES:  codex
+          OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
+          POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
+          SECRET_KEY:              ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
-          SLOT="${{ steps.card.outputs.slot }}"
-          export CODEX_WORKSPACE_UID="$(id -u)"
-          export CODEX_WORKSPACE_GID="$(id -g)"
-          codexctl ci apply \
-            --env ai-repair \
-            --slot "${SLOT}" \
-            --preflight \
-            --wait \
-            --only-infra namespace-and-config,codex-ai-repair-rbac \
-            --only-services codex
+          codexctl ci apply
 
       - name: "Run Codex staging repair review 🤖"
         env:
-          GITHUB_RUN_ID:     ${{ github.run_id }}
-          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
-          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
-          CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
+          GITHUB_RUN_ID:           ${{ github.run_id }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
+          CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
+          CODEXCTL_PR_NUMBER:      ${{ github.event.pull_request.number }}
+          OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          SLOT="${{ steps.card.outputs.slot }}"
-          NS="${{ steps.card.outputs.namespace }}"
           NEW_ENV="${{ steps.env_state.outputs.NEW_ENV }}"
-          PR="${{ github.event.pull_request.number }}"
-          KIND="ai-repair_review"
-          RESUME_FLAG="--resume"
-          VARS=""
           if [ "${NEW_ENV}" = "true" ]; then
-            RESUME_FLAG=""
-            VARS="PROMPT_CONTINUATION=1,PROMPT_MODE=full"
+            export CODEXCTL_PROMPT_CONTINUATION=1
+            export CODEXCTL_PROMPT_MODE=full
+          else
+            export CODEXCTL_RESUME=true
           fi
-          RUN_ARGS="--env ai-repair --slot ${SLOT}"
-          if [ -n "$NS" ]; then
-            RUN_ARGS="${RUN_ARGS} --namespace ${NS}"
-          fi
-          if [ -n "$PR" ]; then
-            RUN_ARGS="${RUN_ARGS} --pr ${PR}"
-          fi
-          read -r -a BASE_ARGS <<< "${RUN_ARGS}"
-          ARGS=(prompt run "${BASE_ARGS[@]}" --kind "${KIND}" --lang ru)
-          if [ -n "$VARS" ]; then
-            ARGS+=(--vars "$VARS")
-          fi
-          if [ -n "$RESUME_FLAG" ]; then
-            ARGS+=("$RESUME_FLAG")
-          fi
-          codexctl "${ARGS[@]}"
+          codexctl prompt run --kind ai-repair_review
 
       - name: "Apply review changes and comment 💾"
         env:
-          SLOT:               ${{ steps.card.outputs.slot }}
-          PR_NUMBER:          ${{ github.event.pull_request.number }}
+          CODEXCTL_SLOT:      ${{ steps.card.outputs.slot }}
+          CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY:  ${{ github.repository }}
-          CODEX_GH_PAT:       ${{ secrets.CODEX_GH_PAT }}
+          CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          codexctl pr review-apply \
-            --env ai-repair \
-            --slot "${SLOT}" \
-            --pr "${PR_NUMBER}" \
-            --code-root-base "${CODE_ROOT_BASE}" \
-            --lang ru
+          codexctl pr review-apply
 
       - name: "Cleanup staging repair env on failure 🧹"
         if: (failure() || cancelled()) && steps.card.outputs.slot != ''
         env:
-          SLOT: ${{ steps.card.outputs.slot }}
+          CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
-          codexctl manage-env cleanup --env ai-repair --slot "${SLOT}" --with-configmap || true
+          codexctl manage-env cleanup || true

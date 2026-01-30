@@ -406,7 +406,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 3. Запустится workflow `.github/workflows/ai_plan_issue.yml`:
    - создаст или переиспользует AI‑slot (namespace `project-example-dev-<slot>`);
    - развернёт инфраструктуру и сервисы через `codexctl ci ensure-ready`;
-   - запустит планирующего агента `prompt run --kind plan_issue` (язык через `CODEXCTL_PROMPT_LANG=ru`).
+   - запустит планирующего агента `prompt run --kind plan_issue` (язык через `CODEXCTL_LANG=ru`).
 4. Агент оставит в Issue комментарий с планом работ, предложенной архитектурой
    и структурой подзадач.
 
@@ -423,7 +423,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
    - выделит/найдёт слот через `codexctl ci ensure-slot`;
    - развернёт окружение в этом слоте (`codexctl ci ensure-ready`, `CODEXCTL_PREPARE_IMAGES=true`, `CODEXCTL_APPLY=true`);
    - создаст/переключится на ветку `codex/issue-<номер>`;
-   - запустит dev‑агента `prompt run --kind dev_issue` (язык через `CODEXCTL_PROMPT_LANG=ru`);
+   - запустит dev‑агента `prompt run --kind dev_issue` (язык через `CODEXCTL_LANG=ru`);
    - после завершения работы агента закоммитит изменения и запушит ветку.
 3. Если для ветки уже есть PR, workflow попытается найти его и
    оставит комментарий с ссылками на окружение.
@@ -442,7 +442,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
    - выделит слот `ai-repair`;
    - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/staging/src`;
    - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-staging`;
-   - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_PROMPT_LANG=ru`).
+   - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
 4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml`.
 
 ## 10. Флоу review/fix для PR
@@ -453,7 +453,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 2. Если ревьюер ставит состояние `changes requested`,
    сработает `ai_pr_review.yml`:
    - поднимет (или переиспользует) AI‑slot для этого PR;
-   - запустит агента `prompt run --kind dev_review` (язык через `CODEXCTL_PROMPT_LANG=ru`);
+   - запустит агента `prompt run --kind dev_review` (язык через `CODEXCTL_LANG=ru`);
    - агент применит изменения в слоте;
    - команда `codexctl pr review-apply` перенесёт изменения в PR‑ветку
      (commit + push) и добавит комментарий.

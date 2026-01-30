@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
 
+env:
+  CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
+  CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
+  CODEXCTL_ENV:            staging
+  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
+  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
+
 concurrency:
   group: staging-deploy
   cancel-in-progress: false
@@ -23,18 +31,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Sync staging sources 📂"
-        env:
-          CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
         run: |
           set -euo pipefail
-          if [ -z "${CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODE_ROOT_BASE is not set" >&2
+          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
+            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
             exit 1
           fi
-          STAGING_SRC="${CODE_ROOT_BASE}/staging/src"
+          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
           mkdir -p "${STAGING_SRC}"
           rsync -a --delete \
             --exclude '.cache' \
@@ -42,29 +48,30 @@ jobs:
 
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
+          CODEXCTL_MIRROR_IMAGES: true
+          CODEXCTL_BUILD_IMAGES:  true
           REGISTRY_HOST: localhost:32000
         run: |
           set -euo pipefail
-          codexctl ci images --env staging --mirror --build
+          codexctl ci images
 
       - name: "Apply staging via codexctl 🚀"
         env:
           KUBECONFIG:           /home/runner/.kube/microk8s.config
           NO_PROXY:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
-          CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_PREFLIGHT:      true
+          CODEXCTL_WAIT:           true
           OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
-          CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
-          DATA_ROOT:            ${{ vars.DATA_ROOT }}
           POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
           REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
           SECRET_KEY:           ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
-          codexctl ci apply --env staging --preflight --wait
+          codexctl ci apply
 
   gc-registry:
     needs: deploy
@@ -74,7 +81,7 @@ jobs:
       - name: "Checkout 📥"
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "GC docker registry container 🗑️"
         run: |

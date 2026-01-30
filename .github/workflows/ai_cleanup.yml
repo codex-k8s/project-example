@@ -6,6 +6,11 @@ on:
   issues:
     types: [closed]
 
+env:
+  CODEXCTL_DATA_ROOT:     ${{ vars.CODEXCTL_DATA_ROOT }}
+  CODEXCTL_WORKSPACE_UID: ${{ vars.CODEXCTL_WORKSPACE_UID }}
+  CODEXCTL_WORKSPACE_GID: ${{ vars.CODEXCTL_WORKSPACE_GID }}
+
 concurrency:
   group: ai-cleanup-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
@@ -16,28 +21,30 @@ jobs:
     runs-on: self-hosted
     environment: staging
     env:
-      CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
-      DATA_ROOT: ${{ vars.DATA_ROOT }}
+      CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Cleanup for PR closed 🧹"
         if: github.event_name == 'pull_request'
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CODEXCTL_PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
-          codexctl manage-env cleanup --env ai --pr "${PR_NUMBER}" --with-configmap || true
+          export CODEXCTL_ENV=ai
+          codexctl manage-env cleanup || true
           BRANCH="${{ github.event.pull_request.head.ref }}"
           if echo "$BRANCH" | grep -q '^codex/issue-'; then
             gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
           fi
           if echo "$BRANCH" | grep -q '^codex/ai-repair-'; then
-            codexctl manage-env cleanup --env ai-repair --pr "${PR_NUMBER}" --with-configmap || true
+            export CODEXCTL_ENV=ai-repair
+            codexctl manage-env cleanup || true
             gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
           fi
 
@@ -45,31 +52,34 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         env:
           REPO: ${{ github.repository }}
-          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+          CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
           BRANCH="${{ github.event.pull_request.head.ref }}"
           if [[ "$BRANCH" =~ ^codex/issue-([0-9]+)$ ]]; then
-            ISSUE_NUMBER="${BASH_REMATCH[1]}"
-            printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-            gh issue close "${ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
+            CODEXCTL_ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+            gh issue close "${CODEXCTL_ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
           fi
           if [[ "$BRANCH" =~ ^codex/ai-repair-([0-9]+)$ ]]; then
-            ISSUE_NUMBER="${BASH_REMATCH[1]}"
-            printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-            gh issue close "${ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
+            CODEXCTL_ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+            gh issue close "${CODEXCTL_ISSUE_NUMBER}" --repo "${REPO}" --reason completed || true
           fi
 
       - name: "Cleanup for Issue closed 🧹"
         if: github.event_name == 'issues'
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
-          codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
-          BRANCH="codex/issue-${ISSUE_NUMBER}"
+          export CODEXCTL_ENV=ai
+          codexctl manage-env cleanup || true
+          BRANCH="codex/issue-${CODEXCTL_ISSUE_NUMBER}"
           gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" || true
-          codexctl manage-env cleanup --env ai-repair --issue "${ISSUE_NUMBER}" --with-configmap || true
-          BRANCH_REPAIR="codex/ai-repair-${ISSUE_NUMBER}"
+          export CODEXCTL_ENV=ai-repair
+          codexctl manage-env cleanup || true
+          BRANCH_REPAIR="codex/ai-repair-${CODEXCTL_ISSUE_NUMBER}"
           gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH_REPAIR}" || true

@@ -5,8 +5,16 @@ on:
     types: [labeled]
 
 env:
-  AI_ALLOWED_USERS: ${{ vars.AI_ALLOWED_USERS }}
-  CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+  CODEXCTL_ALLOWED_USERS:  ${{ vars.CODEXCTL_ALLOWED_USERS }}
+  CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_ENV:            ai
+  CODEXCTL_LANG:           ${{ vars.CODEXCTL_LANG }}
+  CODEXCTL_DEV_SLOTS_MAX:  ${{ vars.CODEXCTL_DEV_SLOTS_MAX }}
+  CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
+  CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
+  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
+  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
+  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
 
 concurrency:
   group: ai-issue-${{ github.event.issue.number }}
@@ -15,9 +23,7 @@ concurrency:
 jobs:
   create-ai:
     name: "Allocate slot 🧩"
-    if: >-
-      github.event.label.name == '[ai-dev]' &&
-      contains(format(',{0},', vars.AI_ALLOWED_USERS), format(',{0},', github.actor))
+    if: github.event.label.name == '[ai-dev]' && contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     timeout-minutes: 360
     environment: staging
@@ -28,26 +34,17 @@ jobs:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Allocate slot via codexctl 🧩"
         id: alloc
         env:
-          GITHUB_RUN_ID:     ${{ github.run_id }}
-          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
+          GITHUB_RUN_ID:           ${{ github.run_id }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_ISSUE_NUMBER:   ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          ENV_NAME="ai"
-          ISSUE="${{ github.event.issue.number }}"
-          MAX="${{ vars.DEV_SLOTS_MAX }}"
-
-          ARGS=(ci ensure-slot --env "${ENV_NAME}" --issue "${ISSUE}")
-          if [ -n "$MAX" ]; then
-            ARGS+=(--max "$MAX")
-          fi
-          codexctl "${ARGS[@]}"
+          codexctl ci ensure-slot
 
   deploy-ai:
     needs: [create-ai]
@@ -62,35 +59,29 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Ensure AI env ready via codexctl 🚀"
         id: ensure
         env:
-          GITHUB_RUN_ID:        ${{ github.run_id }}
-          CODEX_GH_PAT:         ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME:    ${{ vars.CODEX_GH_USERNAME }}
-          OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
-          CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
-          CODE_ROOT_BASE:       ${{ vars.CODE_ROOT_BASE }}
-          DATA_ROOT:            ${{ vars.DATA_ROOT }}
-          POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD:    ${{ secrets.POSTGRES_PASSWORD }}
-          REDIS_PASSWORD:       ${{ secrets.REDIS_PASSWORD }}
-          SECRET_KEY:           ${{ secrets.SECRET_KEY }}
+          GITHUB_RUN_ID:           ${{ github.run_id }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_SLOT:           ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_ISSUE_NUMBER:   ${{ github.event.issue.number }}
+          CODEXCTL_SOURCE:         .
+          CODEXCTL_PREPARE_IMAGES: true
+          CODEXCTL_APPLY:          true
+          CODEXCTL_FORCE_APPLY:    true
+          CODEXCTL_WAIT_SOFT_FAIL: true
+          OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
+          POSTGRES_USER:           ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD:       ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD:          ${{ secrets.REDIS_PASSWORD }}
+          SECRET_KEY:              ${{ secrets.SECRET_KEY }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          SLOT="${{ needs.create-ai.outputs.slot }}"
-          ISSUE="${{ github.event.issue.number }}"
-          MAX="${{ vars.DEV_SLOTS_MAX }}"
-          export CODEX_WORKSPACE_UID="$(id -u)"
-          export CODEX_WORKSPACE_GID="$(id -g)"
-          ARGS=(ci ensure-ready --env ai --slot "${SLOT}" --issue "${ISSUE}" --code-root-base "${CODE_ROOT_BASE}" --source "." --prepare-images --apply --force-apply --wait-soft-fail --vars "CODE_ROOT_BASE=${CODE_ROOT_BASE},DATA_ROOT=${DATA_ROOT}")
-          if [ -n "$MAX" ]; then
-            ARGS+=(--max "$MAX")
-          fi
-          codexctl "${ARGS[@]}"
+          codexctl ci ensure-ready
 
   run-codex:
     needs: [create-ai, deploy-ai]
@@ -98,56 +89,48 @@ jobs:
     runs-on: self-hosted
     environment: staging
     env:
-      CODE_ROOT_BASE: ${{ vars.CODE_ROOT_BASE }}
-      CODEX_GH_PAT:   ${{ secrets.CODEX_GH_PAT }}
+      CODEXCTL_GH_PAT:   ${{ secrets.CODEXCTL_GH_PAT }}
+      CODEXCTL_INFRA_UNHEALTHY: ${{ (needs.deploy-ai.outputs.infra_ready == 'true' || needs.deploy-ai.outputs.infra_ready == '1') && '0' || '1' }}
     steps:
       - name: "Checkout default branch 📥"
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Ensure working branch 🌿"
         env:
-          SLOT: ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_SLOT: ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          ISSUE_NUMBER="${{ github.event.issue.number }}"
-          cd "${CODE_ROOT_BASE}/${SLOT}/src"
-          git config user.name "codex-bot"
-          git config user.email "codex-bot@example.com"
-          git checkout -b "codex/issue-${ISSUE_NUMBER}" || git checkout "codex/issue-${ISSUE_NUMBER}"
+          cd "${CODEXCTL_CODE_ROOT_BASE}/${CODEXCTL_SLOT}/src"
+          git config user.name "${CODEXCTL_GH_USERNAME}"
+          git config user.email "${CODEXCTL_GH_EMAIL}"
+          git checkout -b "codex/issue-${CODEXCTL_ISSUE_NUMBER}" || git checkout "codex/issue-${CODEXCTL_ISSUE_NUMBER}"
         shell: bash
 
       - name: "Run Codex dev agent 🤖"
         env:
-          GITHUB_RUN_ID:     ${{ github.run_id }}
-          CODEX_GH_PAT:      ${{ secrets.CODEX_GH_PAT }}
-          CODEX_GH_USERNAME: ${{ vars.CODEX_GH_USERNAME }}
-          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
-          CONTEXT7_API_KEY:  ${{ secrets.CONTEXT7_API_KEY }}
+          GITHUB_RUN_ID:           ${{ github.run_id }}
+          CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
+          CODEXCTL_SLOT:           ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_ISSUE_NUMBER:   ${{ github.event.issue.number }}
+          CODEXCTL_NAMESPACE:      ${{ needs.create-ai.outputs.namespace }}
+          OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
+          CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          INFRA_READY="${{ needs.deploy-ai.outputs.infra_ready }}"
-          RUN_ARGS="${{ needs.deploy-ai.outputs.codexctl_run_args }}"
-          read -r -a BASE_ARGS <<< "${RUN_ARGS}"
-          ARGS=(prompt run "${BASE_ARGS[@]}" --kind dev_issue --lang ru)
-          if [ "$INFRA_READY" = "false" ] || [ "$INFRA_READY" = "0" ]; then
-            ARGS+=(--infra-unhealthy)
-          fi
-          codexctl "${ARGS[@]}"
+          codexctl prompt run --kind dev_issue
 
       - name: "Auto-commit and push changes 📤"
         env:
-          SLOT:  ${{ needs.create-ai.outputs.slot }}
-          ISSUE: ${{ github.event.issue.number }}
+          CODEXCTL_SLOT:        ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+          cd "${CODEXCTL_CODE_ROOT_BASE}/${CODEXCTL_SLOT}/src"
 
-          BRANCH="codex/issue-${ISSUE}"
+          BRANCH="codex/issue-${CODEXCTL_ISSUE_NUMBER}"
           if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
             git checkout "$BRANCH"
           fi
@@ -162,24 +145,23 @@ jobs:
             exit 0
           fi
 
-          MSG="feat: apply Codex changes for issue #${ISSUE}"
+          MSG="feat: apply Codex changes for issue #${CODEXCTL_ISSUE_NUMBER}"
           git commit -m "$MSG"
           git push origin "$BRANCH"
 
       - name: "Detect PR for issue branch 🔎"
         id: detect_pr
         env:
-          SLOT: ${{ needs.create-ai.outputs.slot }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+          CODEXCTL_SLOT:         ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_REPOSITORY:     ${{ github.repository }}
+          CODEXCTL_GH_PAT:       ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          BRANCH="codex/issue-${ISSUE_NUMBER}"
-          cd "${CODE_ROOT_BASE}/${SLOT}/src"
+          BRANCH="codex/issue-${CODEXCTL_ISSUE_NUMBER}"
+          cd "${CODEXCTL_CODE_ROOT_BASE}/${CODEXCTL_SLOT}/src"
 
-          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+          printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
 
           PRN="$(gh pr list --head "${BRANCH}" --json number -q '.[0].number' 2>/dev/null || true)"
           if [ -z "${PRN}" ]; then
@@ -187,63 +169,52 @@ jobs:
             exit 0
           fi
 
-          echo "PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
+          echo "CODEXCTL_PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
 
       - name: "Attach PR number to slot 🏷️"
-        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
         env:
-          SLOT: ${{ needs.create-ai.outputs.slot }}
-          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
+          CODEXCTL_SLOT:     ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-          codexctl manage-env set --env ai --slot "${SLOT}" --pr "${PR_NUMBER}"
+          codexctl manage-env set
 
       - name: "Comment to PR with env links 🔗"
-        if: steps.detect_pr.outputs.PR_NUMBER != ''
+        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
         env:
-          SLOT: ${{ needs.create-ai.outputs.slot }}
-          PR_NUMBER: ${{ steps.detect_pr.outputs.PR_NUMBER }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
+          CODEXCTL_SLOT:      ${{ needs.create-ai.outputs.slot }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+          CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
           BODY_FILE="$(mktemp)"
-          codexctl manage-env comment --env ai --slot "${SLOT}" --lang ru > "${BODY_FILE}"
+          codexctl manage-env comment > "${BODY_FILE}"
 
-          printf '%s' "${CODEX_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}"
+          printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
+          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file "${BODY_FILE}"
 
   cleanup-ai:
     needs: [create-ai, deploy-ai, run-codex]
-    if: always()
+    if: >
+      always() &&
+      (needs.create-ai.result != 'success' || needs.deploy-ai.result != 'success' || needs.run-codex.result != 'success')
     name: "Cleanup on failure 🧹"
     runs-on: self-hosted
     environment: staging
     env:
-      CODEX_GH_PAT: ${{ secrets.CODEX_GH_PAT }}
-      DATA_ROOT: ${{ vars.DATA_ROOT }}
+      CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
     steps:
       - name: "Checkout minimal 📥"
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CODEX_GH_PAT }}
+          token: ${{ secrets.CODEXCTL_GH_PAT }}
 
       - name: "Cleanup AI slot on failure (global) 🧹"
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
-          codexctl --help >/dev/null
-
-          STATUS_CREATE="${{ needs.create-ai.result }}"
-          STATUS_DEPLOY="${{ needs.deploy-ai.result }}"
-          STATUS_RUN="${{ needs.run-codex.result }}"
-
-          if [ "${STATUS_CREATE}" = "success" ] && [ "${STATUS_DEPLOY}" = "success" ] && [ "${STATUS_RUN}" = "success" ]; then
-            echo "info: primary AI Dev Issue workflow completed successfully, no cleanup required" >&2
-            exit 0
-          fi
-
-          codexctl manage-env cleanup --env ai --issue "${ISSUE_NUMBER}" --with-configmap || true
+          codexctl manage-env cleanup || true
