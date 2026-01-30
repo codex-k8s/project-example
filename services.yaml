@@ -1,7 +1,7 @@
-# {{- $codeRootBase := envOr "CODE_ROOT_BASE" "" -}}
+# {{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" "" -}}
 # {{- $slotCodeRoot := default $codeRootBase (printf "%s/slots" .ProjectRoot) -}}
 # {{- $stagingCodeRoot := default (ternary (ne $codeRootBase "") (printf "%s/staging/src" $codeRootBase) "") .ProjectRoot -}}
-# {{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
+# {{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
 project: project-example
 
 codex:
