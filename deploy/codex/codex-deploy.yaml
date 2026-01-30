@@ -15,13 +15,13 @@ spec:
         app: codex
     spec:
       securityContext:
-        fsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+        fsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
       serviceAccountName: codex-sa
       containers:
         - name: codex
           securityContext:
-            runAsUser: {{ envOr "CODEX_WORKSPACE_UID" "1000" }}
-            runAsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+            runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
+            runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
           image: "codex-placeholder:latest"
           workingDir: "/workspace"
           imagePullPolicy: Always
@@ -39,11 +39,11 @@ spec:
             - configMapRef:
                 name: project-example-config
           env:
-            - name: CODEX_GH_PAT
+            - name: CODEXCTL_GH_PAT
               valueFrom:
                 secretKeyRef:
                   name: github-secret
-                  key: CODEX_GH_PAT
+                  key: CODEXCTL_GH_PAT
             - name: CONTEXT7_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -51,10 +51,10 @@ spec:
                   key: CONTEXT7_API_KEY
             - name: WORKDIR
               value: /workspace
-            - name: SLOT
+            - name: CODEXCTL_SLOT
               value: "{{ .Slot }}"
-            - name: PR_NUMBER
-              value: '{{ envOr "PR_NUMBER" "" }}'
-            - name: ISSUE_NUMBER
-              value: '{{ envOr "ISSUE_NUMBER" "" }}'
+            - name: CODEXCTL_PR_NUMBER
+              value: '{{ envOr "CODEXCTL_PR_NUMBER" "" }}'
+            - name: CODEXCTL_ISSUE_NUMBER
+              value: '{{ envOr "CODEXCTL_ISSUE_NUMBER" "" }}'
           volumeMounts: []

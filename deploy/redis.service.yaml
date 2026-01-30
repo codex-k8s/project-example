@@ -1,4 +1,4 @@
-{{- $dataRoot := default (envOr "DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
+{{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
 {{- $envDir := ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) -}}
 {{- $imagePullPolicy := ternary (eq .Env "staging") "Always" "IfNotPresent" -}}
 apiVersion: apps/v1

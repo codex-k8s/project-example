@@ -27,7 +27,7 @@ spec:
     spec:
       {{- if eq .Env "ai" }}
       securityContext:
-        fsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+        fsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
       {{- end }}
       dnsPolicy: ClusterFirst
       dnsConfig:
@@ -67,8 +67,8 @@ spec:
               name: http
           {{- if or (eq .Env "ai") (eq .Env "staging") }}
           securityContext:
-            runAsUser: {{ envOr "CODEX_WORKSPACE_UID" "1000" }}
-            runAsGroup: {{ envOr "CODEX_WORKSPACE_GID" "1000" }}
+            runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
+            runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
           {{- end }}
           livenessProbe:
             httpGet:
