@@ -34,8 +34,8 @@ jobs:
       - name: "Cleanup for PR closed 🧹"
         if: github.event_name == 'pull_request'
         env:
-          CODEXCTL_WITH_CONFIGMAP: 1
-          CODEXCTL_DELETE_BRANCH: 1
+          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_DELETE_BRANCH: true
         run: |
           set -euo pipefail
           codexctl manage-env cleanup-pr
@@ -44,7 +44,7 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
         env:
           CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
-          CODEXCTL_CLOSE_ISSUE: 1
+          CODEXCTL_CLOSE_ISSUE: true
         run: |
           set -euo pipefail
           codexctl manage-env close-linked-issue
@@ -53,8 +53,8 @@ jobs:
         if: github.event_name == 'issues'
         env:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          CODEXCTL_WITH_CONFIGMAP: 1
-          CODEXCTL_DELETE_BRANCH: 1
+          CODEXCTL_WITH_CONFIGMAP: true
+          CODEXCTL_DELETE_BRANCH: true
         run: |
           set -euo pipefail
           codexctl manage-env cleanup-issue

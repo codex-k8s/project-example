@@ -7,12 +7,12 @@ on:
 env:
   CODEXCTL_ALLOWED_USERS:  ${{ vars.CODEXCTL_ALLOWED_USERS }}
   CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_ENV:            ai-repair
   CODEXCTL_LANG:           ${{ vars.CODEXCTL_LANG }}
   CODEXCTL_DEV_SLOTS_MAX:  ${{ vars.CODEXCTL_DEV_SLOTS_MAX }}
   CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
-  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_REPO:           ${{ github.repository }}
@@ -71,8 +71,8 @@ jobs:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_PREFLIGHT:      1
-          CODEXCTL_WAIT:           1
+          CODEXCTL_PREFLIGHT:      true
+          CODEXCTL_WAIT:           true
           CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
           CODEXCTL_ONLY_SERVICES:  codex
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -89,7 +89,7 @@ jobs:
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: 1
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true
@@ -141,7 +141,7 @@ jobs:
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: 1
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
           if [ -z "${CODEXCTL_SLOT}" ]; then

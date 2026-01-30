@@ -7,6 +7,7 @@ on:
 env:
   CODEXCTL_ALLOWED_USERS:  ${{ vars.CODEXCTL_ALLOWED_USERS }}
   CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_ENV:            ai
   CODEXCTL_LANG:           ${{ vars.CODEXCTL_LANG }}
   CODEXCTL_DEV_SLOTS_MAX:  ${{ vars.CODEXCTL_DEV_SLOTS_MAX }}
@@ -51,8 +52,8 @@ jobs:
         id: card
         env:
           CODEXCTL_SOURCE:        .
-          CODEXCTL_PREPARE_IMAGES: 1
-          CODEXCTL_APPLY:          1
+          CODEXCTL_PREPARE_IMAGES: true
+          CODEXCTL_APPLY:          true
         run: |
           set -euo pipefail
           codexctl ci ensure-ready
@@ -63,8 +64,8 @@ jobs:
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
-          CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.codexctl_new_env == '1' && '1' || '0' }}
-          CODEXCTL_RESUME:         ${{ steps.card.outputs.codexctl_new_env == '1' && '0' || '1' }}
+          CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.codexctl_new_env == 'true' && 'true' || 'false' }}
+          CODEXCTL_RESUME:         ${{ steps.card.outputs.codexctl_new_env == 'true' && 'false' || 'true' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |

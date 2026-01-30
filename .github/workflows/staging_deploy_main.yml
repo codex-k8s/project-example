@@ -6,6 +6,7 @@ on:
 
 env:
   CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_ENV:            staging
@@ -41,8 +42,8 @@ jobs:
 
       - name: "Prepare images via codexctl 🪞🏗️"
         env:
-          CODEXCTL_MIRROR_IMAGES: 1
-          CODEXCTL_BUILD_IMAGES:  1
+          CODEXCTL_MIRROR_IMAGES: true
+          CODEXCTL_BUILD_IMAGES:  true
           REGISTRY_HOST: localhost:32000
         run: |
           set -euo pipefail
@@ -54,8 +55,8 @@ jobs:
           NO_PROXY:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
-          CODEXCTL_PREFLIGHT:      1
-          CODEXCTL_WAIT:           1
+          CODEXCTL_PREFLIGHT:      true
+          CODEXCTL_WAIT:           true
           OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:     ${{ secrets.CONTEXT7_API_KEY }}
           POSTGRES_USER:        ${{ secrets.POSTGRES_USER }}

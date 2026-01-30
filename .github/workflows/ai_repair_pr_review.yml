@@ -7,6 +7,7 @@ on:
 env:
   CODEXCTL_ALLOWED_USERS:  ${{ vars.CODEXCTL_ALLOWED_USERS }}
   CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
+  CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_ENV:            ai-repair
   CODEXCTL_LANG:           ${{ vars.CODEXCTL_LANG }}
   CODEXCTL_DEV_SLOTS_MAX:  ${{ vars.CODEXCTL_DEV_SLOTS_MAX }}
@@ -65,8 +66,8 @@ jobs:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
-          CODEXCTL_PREFLIGHT:      1
-          CODEXCTL_WAIT:           1
+          CODEXCTL_PREFLIGHT:      true
+          CODEXCTL_WAIT:           true
           CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
           CODEXCTL_ONLY_SERVICES:  codex
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
@@ -85,8 +86,8 @@ jobs:
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
-          CODEXCTL_PROMPT_CONTINUATION: ${{ (steps.card.outputs.codexctl_new_env == '1' || steps.card.outputs.codexctl_env_ready != '1') && '1' || '0' }}
-          CODEXCTL_RESUME:         ${{ (steps.card.outputs.codexctl_new_env == '1' || steps.card.outputs.codexctl_env_ready != '1') && '0' || '1' }}
+          CODEXCTL_PROMPT_CONTINUATION: ${{ (steps.card.outputs.codexctl_new_env == 'true' || steps.card.outputs.codexctl_env_ready != 'true') && 'true' || 'false' }}
+          CODEXCTL_RESUME:         ${{ (steps.card.outputs.codexctl_new_env == 'true' || steps.card.outputs.codexctl_env_ready != 'true') && 'false' || 'true' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |
@@ -105,7 +106,7 @@ jobs:
         if: (failure() || cancelled()) && steps.card.outputs.slot != ''
         env:
           CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}
-          CODEXCTL_WITH_CONFIGMAP: 1
+          CODEXCTL_WITH_CONFIGMAP: true
         run: |
           set -euo pipefail
           codexctl manage-env cleanup || true

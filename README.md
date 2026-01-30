@@ -380,7 +380,7 @@ mkdir -p ~/codex/envs ~/codex/data
    - соберутся и отзеркалятся необходимые образы (`CODEXCTL_ENV=staging`, `CODEXCTL_MIRROR_IMAGES=1`, `CODEXCTL_BUILD_IMAGES=1`,
      далее `codexctl ci images`);
    - исходники будут синхронизированы в `${CODEXCTL_CODE_ROOT_BASE}/staging/src` и примонтированы в staging‑подах;
-   - `codexctl ci apply` применит инфраструктуру и сервисы (`CODEXCTL_ENV=staging`, `CODEXCTL_PREFLIGHT=1`, `CODEXCTL_WAIT=1`);
+   - `codexctl ci apply` применит инфраструктуру и сервисы (`CODEXCTL_ENV=staging`, `CODEXCTL_PREFLIGHT=true`, `CODEXCTL_WAIT=true`);
    - в кластере появится неймспейс `project-example-staging`.
 
 Проверка:
@@ -422,7 +422,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 1. Для конкретной задачи (Issue) повесьте метку `[ai-dev]`.
 2. Workflow `ai_dev_issue.yml`:
    - выделит/найдёт слот через `codexctl ci ensure-slot`;
-   - развернёт окружение в этом слоте (`codexctl ci ensure-ready`, `CODEXCTL_PREPARE_IMAGES=1`, `CODEXCTL_APPLY=1`);
+   - развернёт окружение в этом слоте (`codexctl ci ensure-ready`, `CODEXCTL_PREPARE_IMAGES=true`, `CODEXCTL_APPLY=true`);
    - создаст/переключится на ветку `codex/issue-<номер>`;
    - запустит dev‑агента `prompt run --kind dev_issue` (язык через `CODEXCTL_LANG=ru`);
    - после завершения работы агента закоммитит изменения и запушит ветку.
