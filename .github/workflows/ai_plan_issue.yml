@@ -55,6 +55,7 @@ jobs:
     environment: staging
     outputs:
       infra_ready: ${{ steps.ensure.outputs.infra_ready }}
+      infra_unhealthy: ${{ steps.ensure.outputs.infra_unhealthy }}
       codexctl_run_args: ${{ steps.ensure.outputs.codexctl_run_args }}
     steps:
       - name: "Checkout project-example 📥"
@@ -92,7 +93,7 @@ jobs:
     environment: staging
     env:
       CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
-      CODEXCTL_INFRA_UNHEALTHY: ${{ (needs.deploy-ai-plan.outputs.infra_ready == 'true' || needs.deploy-ai-plan.outputs.infra_ready == '1') && '0' || '1' }}
+      CODEXCTL_INFRA_UNHEALTHY: ${{ needs.deploy-ai-plan.outputs.infra_unhealthy }}
     steps:
       - name: "Checkout default branch 📥"
         uses: actions/checkout@v4

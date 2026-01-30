@@ -37,15 +37,7 @@ jobs:
       - name: "Sync staging sources 📂"
         run: |
           set -euo pipefail
-          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
-            exit 1
-          fi
-          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
-          mkdir -p "${STAGING_SRC}"
-          rsync -a --delete \
-            --exclude '.cache' \
-            ./ "${STAGING_SRC}/"
+          codexctl ci sync-sources
 
       - name: "Prepare images via codexctl 🪞🏗️"
         env:

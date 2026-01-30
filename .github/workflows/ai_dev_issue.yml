@@ -54,6 +54,7 @@ jobs:
     environment: staging
     outputs:
       infra_ready: ${{ steps.ensure.outputs.infra_ready }}
+      infra_unhealthy: ${{ steps.ensure.outputs.infra_unhealthy }}
       codexctl_run_args: ${{ steps.ensure.outputs.codexctl_run_args }}
     steps:
       - name: "Checkout project-example 📥"
@@ -91,7 +92,7 @@ jobs:
     environment: staging
     env:
       CODEXCTL_GH_PAT:   ${{ secrets.CODEXCTL_GH_PAT }}
-      CODEXCTL_INFRA_UNHEALTHY: ${{ (needs.deploy-ai.outputs.infra_ready == 'true' || needs.deploy-ai.outputs.infra_ready == '1') && '0' || '1' }}
+      CODEXCTL_INFRA_UNHEALTHY: ${{ needs.deploy-ai.outputs.infra_unhealthy }}
     steps:
       - name: "Checkout default branch 📥"
         uses: actions/checkout@v4
@@ -169,30 +170,26 @@ jobs:
             exit 0
           fi
 
-          echo "CODEXCTL_PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
+          echo "codexctl_pr_number=${PRN}" >> "$GITHUB_OUTPUT"
 
       - name: "Attach PR number to slot 🏷️"
-        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
+        if: steps.detect_pr.outputs.codexctl_pr_number != ''
         env:
           CODEXCTL_SLOT:     ${{ needs.create-ai.outputs.slot }}
-          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.codexctl_pr_number }}
         run: |
           set -euo pipefail
           codexctl manage-env set
 
       - name: "Comment to PR with env links 🔗"
-        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
+        if: steps.detect_pr.outputs.codexctl_pr_number != ''
         env:
           CODEXCTL_SLOT:      ${{ needs.create-ai.outputs.slot }}
-          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.codexctl_pr_number }}
           CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          BODY_FILE="$(mktemp)"
-          codexctl manage-env comment > "${BODY_FILE}"
-
-          printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${CODEXCTL_REPO}" --body-file "${BODY_FILE}"
+          codexctl manage-env comment-pr
 
   cleanup-ai:
     needs: [create-ai, deploy-ai, run-codex]

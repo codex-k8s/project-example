@@ -85,8 +85,8 @@ jobs:
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
           CODEXCTL_ISSUE_NUMBER:   ${{ steps.root_issue.outputs.root }}
           CODEXCTL_FOCUS_ISSUE_NUMBER: ${{ steps.root_issue.outputs.focus }}
-          CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '1' || '0' }}
-          CODEXCTL_RESUME:         ${{ steps.card.outputs.CODEXCTL_NEW_ENV == 'true' && '0' || '1' }}
+          CODEXCTL_PROMPT_CONTINUATION: ${{ steps.card.outputs.codexctl_new_env == '1' && '1' || '0' }}
+          CODEXCTL_RESUME:         ${{ steps.card.outputs.codexctl_new_env == '1' && '0' || '1' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |

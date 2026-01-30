@@ -52,13 +52,7 @@ jobs:
       - name: "Sync staging sources 📂"
         run: |
           set -euo pipefail
-          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
-            exit 1
-          fi
-          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
-          mkdir -p "${STAGING_SRC}"
-          rsync -a --delete --exclude '.cache' ./ "${STAGING_SRC}/"
+          codexctl ci sync-sources
 
       - name: "Resolve slot and namespace for PR 📇"
         id: card
@@ -91,8 +85,8 @@ jobs:
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
           CODEXCTL_SLOT:           ${{ steps.card.outputs.slot }}
           CODEXCTL_NAMESPACE:      ${{ steps.card.outputs.namespace }}
-          CODEXCTL_PROMPT_CONTINUATION: ${{ (steps.card.outputs.CODEXCTL_NEW_ENV == 'true' || steps.card.outputs.CODEXCTL_ENV_READY != 'true') && '1' || '0' }}
-          CODEXCTL_RESUME:         ${{ (steps.card.outputs.CODEXCTL_NEW_ENV == 'true' || steps.card.outputs.CODEXCTL_ENV_READY != 'true') && '0' || '1' }}
+          CODEXCTL_PROMPT_CONTINUATION: ${{ (steps.card.outputs.codexctl_new_env == '1' || steps.card.outputs.codexctl_env_ready != '1') && '1' || '0' }}
+          CODEXCTL_RESUME:         ${{ (steps.card.outputs.codexctl_new_env == '1' || steps.card.outputs.codexctl_env_ready != '1') && '0' || '1' }}
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
         run: |

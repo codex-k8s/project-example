@@ -444,7 +444,7 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
    - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/staging/src`;
    - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-staging`;
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
-4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `CODEXCTL_NEW_ENV` и `CODEXCTL_ENV_READY` для выбора continuation/resume).
+4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
 
 ## 10. Флоу review/fix для PR
 

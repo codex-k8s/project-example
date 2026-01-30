@@ -64,9 +64,7 @@ jobs:
       - name: "Sync staging sources 📂"
         run: |
           set -euo pipefail
-          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
-          mkdir -p "${STAGING_SRC}"
-          rsync -a --delete --exclude '.cache' ./ "${STAGING_SRC}/"
+          codexctl ci sync-sources
 
       - name: "Ensure staging repair env via codexctl 🚀"
         env:
@@ -112,13 +110,7 @@ jobs:
       - name: "Sync staging sources 📂"
         run: |
           set -euo pipefail
-          if [ -z "${CODEXCTL_CODE_ROOT_BASE:-}" ]; then
-            echo "error: CODEXCTL_CODE_ROOT_BASE is not set" >&2
-            exit 1
-          fi
-          STAGING_SRC="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
-          mkdir -p "${STAGING_SRC}"
-          rsync -a --delete --exclude '.cache' ./ "${STAGING_SRC}/"
+          codexctl ci sync-sources
 
       - name: "Ensure working branch 🌿"
         env:
@@ -203,26 +195,23 @@ jobs:
             exit 0
           fi
 
-          echo "CODEXCTL_PR_NUMBER=${PRN}" >> "$GITHUB_OUTPUT"
+          echo "codexctl_pr_number=${PRN}" >> "$GITHUB_OUTPUT"
 
       - name: "Attach PR number to slot 🏷️"
-        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
+        if: steps.detect_pr.outputs.codexctl_pr_number != ''
         env:
           CODEXCTL_SLOT:     ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.codexctl_pr_number }}
         run: |
           set -euo pipefail
           codexctl manage-env set
 
       - name: "Comment to PR with env links 🔗"
-        if: steps.detect_pr.outputs.CODEXCTL_PR_NUMBER != ''
+        if: steps.detect_pr.outputs.codexctl_pr_number != ''
         env:
           CODEXCTL_SLOT:      ${{ needs.create-ai-repair.outputs.slot }}
-          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.CODEXCTL_PR_NUMBER }}
+          CODEXCTL_PR_NUMBER: ${{ steps.detect_pr.outputs.codexctl_pr_number }}
           CODEXCTL_GH_PAT:    ${{ secrets.CODEXCTL_GH_PAT }}
         run: |
           set -euo pipefail
-          BODY_FILE="$(mktemp)"
-          codexctl manage-env comment > "${BODY_FILE}"
-          printf '%s' "${CODEXCTL_GH_PAT}" | gh auth login --with-token >/dev/null 2>&1 || true
-          gh pr comment "${CODEXCTL_PR_NUMBER}" --repo "${CODEXCTL_REPO}" --body-file "${BODY_FILE}" || true
+          codexctl manage-env comment-pr || true
