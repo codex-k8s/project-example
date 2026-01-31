@@ -358,10 +358,6 @@ mkdir -p ~/codex/envs ~/codex/data
 - `CODEXCTL_GH_PAT` — GitHub Personal Access Token бота (с правами на создание и редактирование PR/Issue и комментариев к ним. С правами на создание веток и пуш коммитов в них.);
 - `OPENAI_API_KEY` — ключ для OpenAI;
 - `CONTEXT7_API_KEY` — ключ для Context7;
-- `POSTGRES_USER` — логин БД (по умолчанию `chat`);
-- `POSTGRES_PASSWORD` — пароль БД;
-- `REDIS_PASSWORD` — пароль Redis;
-- `SECRET_KEY` — секрет Django (`python -c "import secrets; print(secrets.token_urlsafe(50))"`).
 
 Все эти переменные используются в:
 
