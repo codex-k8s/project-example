@@ -37,7 +37,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: codex-ops
-  namespace: {{ printf "%s-staging" .Project }}
+  namespace: {{ printf "%s-ai-staging" .Project }}
 rules:
 - apiGroups: ["", "apps", "batch", "networking.k8s.io"]
   resources: ["deployments","deployments/scale","services","ingresses","statefulsets","jobs","configmaps","secrets"]
@@ -53,7 +53,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: codex-ops-binding
-  namespace: {{ printf "%s-staging" .Project }}
+  namespace: {{ printf "%s-ai-staging" .Project }}
 subjects:
 - kind: ServiceAccount
   name: codex-sa

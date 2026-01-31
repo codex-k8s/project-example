@@ -1,6 +1,6 @@
 # {{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" "" -}}
 # {{- $slotCodeRoot := default $codeRootBase (printf "%s/slots" .ProjectRoot) -}}
-# {{- $stagingCodeRoot := default (ternary (ne $codeRootBase "") (printf "%s/staging/src" $codeRootBase) "") .ProjectRoot -}}
+# {{- $stagingCodeRoot := default (ternary (ne $codeRootBase "") (printf "%s/ai-staging/src" $codeRootBase) "") .ProjectRoot -}}
 # {{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
 project: project-example
 
@@ -35,7 +35,7 @@ codex:
 namespace:
   patterns:
     dev: "{{ .Project }}-dev"
-    staging: "{{ .Project }}-staging"
+    ai-staging: "{{ .Project }}-ai-staging"
     ai: "{{ .Project }}-dev-{{ .Slot }}"
     ai-repair: "{{ .Project }}-ai-repair-{{ .Slot }}"
 
@@ -45,9 +45,9 @@ registry: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}'
 
 baseDomain:
   dev: '{{ envOr "BASE_DOMAIN_DEV" "dev.example-domain.ru" }}'
-  staging: '{{ envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru" }}'
-  ai: '{{ envOr "BASE_DOMAIN_AI" (envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru") }}'
-  ai-repair: '{{ envOr "BASE_DOMAIN_STAGING" "staging.example-domain.ru" }}'
+  ai-staging: '{{ envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
+  ai: '{{ envOr "BASE_DOMAIN_AI" (envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru") }}'
+  ai-repair: '{{ envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
 
 dataPaths:
   root: '{{ $dataRoot }}'
@@ -101,7 +101,7 @@ images:
   django-backend:
     type: build
     repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "django-backend") }}'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
     dockerfile: 'services/django_backend/Dockerfile'
     context: 'services/django_backend'
     buildArgs:
@@ -111,7 +111,7 @@ images:
   chat-backend:
     type: build
     repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "chat-backend") }}'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
     dockerfile: 'services/chat_backend/Dockerfile'
     context: 'services/chat_backend'
     buildArgs:
@@ -121,7 +121,7 @@ images:
   web-frontend:
     type: build
     repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "web-frontend") }}'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
     dockerfile: 'services/web_frontend/Dockerfile'
     context: 'services/web_frontend'
     buildArgs:
@@ -131,7 +131,7 @@ images:
   codex:
     type: build
     repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "codex") }}'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "codex") }}'
     dockerfile: 'deploy/codex/Dockerfile'
     context: '.'
     buildArgs:
@@ -149,7 +149,7 @@ environments:
       enabled: true
       name: "project-example-registry"
       port: 32000
-  staging:
+  ai-staging:
     kubeconfig: "/home/runner/.kube/microk8s.config"
     imagePullPolicy: Always
     localRegistry:
@@ -157,28 +157,28 @@ environments:
       name: "project-example-registry"
       port: 32000
   ai:
-    from: "staging"
+    from: "ai-staging"
     imagePullPolicy: IfNotPresent
   ai-repair:
-    from: "staging"
+    from: "ai-staging"
     imagePullPolicy: IfNotPresent
 
 hooks:
   beforeAll:
     - name: ensure-local-data-dirs
-      when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+      when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
       use: codex.ensure-data-dirs
 
 infrastructure:
   - name: namespace-and-config
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") (eq .Env "ai-repair") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") (eq .Env "ai-repair") }}'
     manifests:
       - path: deploy/namespace.yaml
       - path: deploy/configmap.yaml
       - path: deploy/secret.yaml
 
   - name: cluster-dns
-    when: '{{ eq .Env "staging" }}'
+    when: '{{ eq .Env "ai-staging" }}'
     manifests:
       - path: deploy/dns.configmap.yaml
 
@@ -188,31 +188,31 @@ infrastructure:
       - path: deploy/codex/rbac-ai-repair.yaml
 
   - name: tls-issuer
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/cluster-issuer.yaml
 
   - name: echo-probe
-    when: '{{ eq .Env "staging" }}'
+    when: '{{ eq .Env "ai-staging" }}'
     manifests:
       - path: deploy/echo-probe.yaml
     hooks:
       afterApply:
         - name: wait-echo-probe
-          when: '{{ eq .Env "staging" }}'
+          when: '{{ eq .Env "ai-staging" }}'
           run: |
             set -euo pipefail
             NS="{{ .Namespace }}"
             if [ -z "${NS}" ]; then
-              NS="{{ .Project }}-staging"
+              NS="{{ .Project }}-ai-staging"
             fi
             echo "Waiting for echo-probe in namespace ${NS}..." >&2
             kubectl -n "${NS}" rollout status deploy/echo-probe --timeout=120s
         - name: check-echo-probe-http
-          when: '{{ eq .Env "staging" }}'
+          when: '{{ eq .Env "ai-staging" }}'
           run: |
             set -euo pipefail
-            HOST="{{ index .BaseDomain "staging" }}"
+            HOST="{{ index .BaseDomain "ai-staging" }}"
             if ! nc -z 127.0.0.1 80; then
               echo "error: port 80 is not reachable on localhost" >&2
               exit 1
@@ -233,23 +233,23 @@ infrastructure:
               exit 1
             fi
         - name: cleanup-echo-probe
-          when: '{{ eq .Env "staging" }}'
+          when: '{{ eq .Env "ai-staging" }}'
           run: |
             set -euo pipefail
             NS="{{ .Namespace }}"
             if [ -z "${NS}" ]; then
-              NS="{{ .Project }}-staging"
+              NS="{{ .Project }}-ai-staging"
             fi
             kubectl -n "${NS}" delete deploy/echo-probe svc/echo-probe ingress/echo-probe --ignore-not-found || true
 
   - name: data-services
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/postgres.service.yaml
       - path: deploy/redis.service.yaml
 
   - name: observability
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/jaeger.yaml
 
@@ -259,15 +259,15 @@ services:
       - path: services/django_backend/deploy.yaml
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "django-backend") }}'
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
           - name: django-src
             hostPath: "{{ .ProjectRoot }}/services/django_backend"
             mountPath: "/backend"
-      staging:
+      ai-staging:
         hostMounts:
           - name: django-src
             hostPath: '{{ printf "%s/services/django_backend" $stagingCodeRoot }}'
@@ -284,15 +284,15 @@ services:
       - path: services/chat_backend/deploy.yaml
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "chat-backend") }}'
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
           - name: go-src
             hostPath: "{{ .ProjectRoot }}/services/chat_backend"
             mountPath: "/app"
-      staging:
+      ai-staging:
         hostMounts:
           - name: go-src
             hostPath: '{{ printf "%s/services/chat_backend" $stagingCodeRoot }}'
@@ -309,15 +309,15 @@ services:
       - path: services/web_frontend/deploy.yaml
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "web-frontend") }}'
-    when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         hostMounts:
           - name: web-src
             hostPath: "{{ .ProjectRoot }}/services/web_frontend"
             mountPath: "/app"
-      staging:
+      ai-staging:
         hostMounts:
           - name: web-src
             hostPath: '{{ printf "%s/services/web_frontend" $stagingCodeRoot }}'
@@ -336,7 +336,7 @@ services:
       - path: deploy/codex/ingress-dev.yaml
     image:
       repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
-      tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "staging" .Env) (index .Versions "codex") }}'
+      tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "codex") }}'
     when: '{{ or (eq .Env "ai") (eq .Env "ai-repair") }}'
     overlays:
       ai:

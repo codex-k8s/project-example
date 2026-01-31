@@ -1,7 +1,7 @@
-{{- $hostEnv := ternary (eq .Env "ai-repair") "staging" .Env -}}
+{{- $hostEnv := ternary (eq .Env "ai-repair") "ai-staging" .Env -}}
 {{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain $hostEnv) -}}
-{{- $redisHost := ternary (eq .Env "ai-repair") (printf "redis.%s-staging.svc.cluster.local" .Project) "redis" -}}
-{{- $dbHost := ternary (eq .Env "ai-repair") (printf "postgres.%s-staging.svc.cluster.local" .Project) "postgres" -}}
+{{- $redisHost := ternary (eq .Env "ai-repair") (printf "redis.%s-ai-staging.svc.cluster.local" .Project) "redis" -}}
+{{- $dbHost := ternary (eq .Env "ai-repair") (printf "postgres.%s-ai-staging.svc.cluster.local" .Project) "postgres" -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

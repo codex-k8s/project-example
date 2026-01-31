@@ -1,5 +1,5 @@
 {{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
-{{- $tagEnv := ternary (eq .Env "ai") "staging" .Env -}}
+{{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -93,7 +93,7 @@ spec:
           image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
           ports:
             - containerPort: 8000
-          {{- if or (eq .Env "ai") (eq .Env "staging") }}
+          {{- if or (eq .Env "ai") (eq .Env "ai-staging") }}
           securityContext:
             runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
             runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}

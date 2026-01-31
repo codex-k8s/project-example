@@ -1,4 +1,4 @@
-name: "Staging deploy  🚀"
+name: "AI Staging deploy 🚀"
 
 on:
   push:
@@ -9,25 +9,25 @@ env:
   CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
   CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
-  CODEXCTL_ENV:            staging
+  CODEXCTL_ENV:            ai-staging
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
-  group: staging-deploy
+  group: ai-staging-deploy
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: "Deploy staging via codexctl 🚀"
+    name: "Deploy ai-staging via codexctl 🚀"
     if: >
       !contains(github.event.head_commit.message, '[skip ci]') &&
       !contains(github.event.head_commit.message, '[skip-ci]') &&
       !contains(github.event.head_commit.message, '[no ci]') &&
       !contains(github.event.head_commit.message, '[no-ci]')
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEXCTL_GH_PAT }}
 
-      - name: "Sync staging sources 📂"
+      - name: "Sync ai-staging sources 📂"
         run: |
           set -euo pipefail
           codexctl ci sync-sources
@@ -49,7 +49,7 @@ jobs:
           set -euo pipefail
           codexctl ci images
 
-      - name: "Apply staging via codexctl 🚀"
+      - name: "Apply ai-staging via codexctl 🚀"
         env:
           KUBECONFIG:           /home/runner/.kube/microk8s.config
           NO_PROXY:             127.0.0.1,localhost,::1
@@ -66,7 +66,7 @@ jobs:
   gc-registry:
     needs: deploy
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     steps:
       - name: "Checkout 📥"
         uses: actions/checkout@v4

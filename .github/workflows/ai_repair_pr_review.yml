@@ -1,4 +1,4 @@
-name: "Staging Repair PR Review 👁"
+name: "AI Staging Repair PR Review 👁"
 
 on:
   pull_request_review:
@@ -25,13 +25,13 @@ concurrency:
 
 jobs:
   run:
-    name: "Staging repair review run 🤖"
+    name: "AI Staging repair review run 🤖"
     if: >-
       github.event.review.state == 'changes_requested' &&
       startsWith(github.event.pull_request.head.ref, 'codex/ai-repair-') &&
       contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     env:
       CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
       GITHUB_RUN_ID:        ${{ github.run_id }}
@@ -46,7 +46,7 @@ jobs:
           token: ${{ secrets.CODEXCTL_GH_PAT }}
           fetch-depth: 0
 
-      - name: "Sync staging sources 📂"
+      - name: "Sync ai-staging sources 📂"
         run: |
           set -euo pipefail
           codexctl ci sync-sources
@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           codexctl ci ensure-ready
 
-      - name: "Ensure staging repair env via codexctl 🚀"
+      - name: "Ensure ai-staging repair env via codexctl 🚀"
         env:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
@@ -72,7 +72,7 @@ jobs:
           set -euo pipefail
           codexctl ci apply
 
-      - name: "Run Codex staging repair review 🤖"
+      - name: "Run Codex ai-staging repair review 🤖"
         env:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
@@ -94,7 +94,7 @@ jobs:
           set -euo pipefail
           codexctl pr review-apply
 
-      - name: "Cleanup staging repair env on failure 🧹"
+      - name: "Cleanup ai-staging repair env on failure 🧹"
         if: (failure() || cancelled()) && steps.card.outputs.slot != ''
         env:
           CODEXCTL_SLOT: ${{ steps.card.outputs.slot }}

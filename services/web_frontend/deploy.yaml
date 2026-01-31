@@ -1,5 +1,5 @@
 {{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
-{{- $tagEnv := ternary (eq .Env "ai") "staging" .Env -}}
+{{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -40,7 +40,7 @@ spec:
               exec npm run dev -- --host 0.0.0.0 --port 5173
           ports:
             - containerPort: 5173
-          {{- if or (eq .Env "ai") (eq .Env "staging") }}
+          {{- if or (eq .Env "ai") (eq .Env "ai-staging") }}
           securityContext:
             runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
             runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}

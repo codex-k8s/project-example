@@ -1,4 +1,4 @@
-name: "Staging Repair 🧯"
+name: "AI Staging Repair 🧯"
 
 on:
   issues:
@@ -29,7 +29,7 @@ jobs:
       contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
     runs-on: self-hosted
     timeout-minutes: 360
-    environment: staging
+    environment: ai-staging
     outputs:
       slot: ${{ steps.alloc.outputs.slot }}
       namespace: ${{ steps.alloc.outputs.namespace }}
@@ -51,9 +51,9 @@ jobs:
 
   deploy-ai-repair:
     needs: [create-ai-repair]
-    name: "Deploy staging repair env 🚀"
+    name: "Deploy ai-staging repair env 🚀"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     steps:
       - name: "Checkout project-example 📥"
         uses: actions/checkout@v4
@@ -61,12 +61,12 @@ jobs:
           ref: ${{ github.sha }}
           token: ${{ secrets.CODEXCTL_GH_PAT }}
 
-      - name: "Sync staging sources 📂"
+      - name: "Sync ai-staging sources 📂"
         run: |
           set -euo pipefail
           codexctl ci sync-sources
 
-      - name: "Ensure staging repair env via codexctl 🚀"
+      - name: "Ensure ai-staging repair env via codexctl 🚀"
         env:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
@@ -81,7 +81,7 @@ jobs:
           set -euo pipefail
           codexctl ci apply
 
-      - name: "Cleanup staging repair env on failure 🧹"
+      - name: "Cleanup ai-staging repair env on failure 🧹"
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
@@ -92,9 +92,9 @@ jobs:
 
   run-codex:
     needs: [create-ai-repair, deploy-ai-repair]
-    name: "Run staging repair agent 🤖"
+    name: "Run ai-staging repair agent 🤖"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     env:
       CODEXCTL_GH_PAT:   ${{ secrets.CODEXCTL_GH_PAT }}
     steps:
@@ -103,7 +103,7 @@ jobs:
         with:
           token: ${{ secrets.CODEXCTL_GH_PAT }}
 
-      - name: "Sync staging sources 📂"
+      - name: "Sync ai-staging sources 📂"
         run: |
           set -euo pipefail
           codexctl ci sync-sources
@@ -113,14 +113,14 @@ jobs:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          WORKDIR="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
+          WORKDIR="${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src"
           cd "${WORKDIR}"
           git config user.name "${CODEXCTL_GH_USERNAME}"
           git config user.email "${CODEXCTL_GH_EMAIL}"
           git checkout -b "codex/ai-repair-${CODEXCTL_ISSUE_NUMBER}" || git checkout "codex/ai-repair-${CODEXCTL_ISSUE_NUMBER}"
         shell: bash
 
-      - name: "Run Codex staging repair agent 🤖"
+      - name: "Run Codex ai-staging repair agent 🤖"
         env:
           GITHUB_RUN_ID:           ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
@@ -133,7 +133,7 @@ jobs:
           set -euo pipefail
           codexctl prompt run --kind ai-repair_issue
 
-      - name: "Cleanup staging repair env on failure 🧹"
+      - name: "Cleanup ai-staging repair env on failure 🧹"
         if: failure() || cancelled()
         env:
           CODEXCTL_SLOT: ${{ needs.create-ai-repair.outputs.slot }}
@@ -150,7 +150,7 @@ jobs:
           CODEXCTL_ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
-          WORKDIR="${CODEXCTL_CODE_ROOT_BASE}/staging/src"
+          WORKDIR="${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src"
           cd "${WORKDIR}"
 
           BRANCH="codex/ai-repair-${CODEXCTL_ISSUE_NUMBER}"
@@ -168,7 +168,7 @@ jobs:
             exit 0
           fi
 
-          MSG="fix: staging repair for issue #${CODEXCTL_ISSUE_NUMBER}"
+          MSG="fix: ai-staging repair for issue #${CODEXCTL_ISSUE_NUMBER}"
           git commit -m "$MSG"
           git push origin "$BRANCH"
 

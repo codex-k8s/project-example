@@ -56,15 +56,15 @@
 - `cluster-issuer.yaml` — ClusterIssuer для Let’s Encrypt;
 - `echo-probe.yaml` — временный echo‑сервис для проверки доступности домена перед выпуском сертификата;
 - `ingress-nginx.controller.yaml` — ingress‑контроллер;
-- `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa` (включая staging‑repair).
+- `codex/*` — Pod Codex, ingress для dev‑слотов (`dev-<slot>.baseDomain.ai`) и RBAC для service account `codex-sa` (включая ai-staging‑repair).
 
 ### Codex и dev‑AI слоты
 
 `services.yaml` описывает:
 
 - `project: project-example`;
-- `baseDomain.dev/staging/ai` — домены;
-- `environments.dev/staging/ai` — kubeconfig и registry;
+- `baseDomain.dev/ai-staging/ai` — домены;
+- `environments.dev/ai-staging/ai` — kubeconfig и registry;
 - `images` — сборку образов сервисов и Codex;
 - `infrastructure` — группы манифестов (`namespace-and-config`, `data-services`, `observability` и т.д.);
 - `services` — приложения (`django-backend`, `chat-backend`, `web-frontend`, `codex`).

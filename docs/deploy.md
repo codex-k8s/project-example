@@ -6,7 +6,7 @@
 для `codexctl` и GitHub Actions:
 
 - `project: project-example`;
-- `baseDomain` — домены для `dev`, `staging`, `ai`;
+- `baseDomain` — домены для `dev`, `ai-staging`, `ai`;
 - `environments` — kubeconfig и политика загрузки образов;
 - `images` — сборка образов Django/Go/Vue и Codex;
 - `infrastructure` — группы манифестов (namespace, PostgreSQL, Redis, Jaeger и т.д.);
@@ -15,7 +15,7 @@
 ### Окружения
 
 - `dev` — локальное окружение разработчика (namespace `project-example-dev`);
-- `staging` — общее стейдж‑окружение (namespace `project-example-staging`);
+- `ai-staging` — общее стейдж‑окружение (namespace `project-example-ai-staging`);
 - `ai` — dev‑AI слоты (`project-example-dev-<slot>`), в которых работает Codex.
 
 Параметры подключения к кластеру задаются в блоке `environments.*`
@@ -23,10 +23,10 @@
 
 ## Базовой цикл деплоя (локально)
 
-Для любого окружения (`dev`, `staging`, `ai`) базовый цикл одинаков:
+Для любого окружения (`dev`, `ai-staging`, `ai`) базовый цикл одинаков:
 
 ```bash
-ENV=staging
+ENV=ai-staging
 
 REGISTRY_HOST=localhost:5000 ./codexctl images mirror --env "$ENV"
 REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
@@ -72,16 +72,16 @@ REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
 
 ## GitHub Actions
 
-### Стейджинг
+### AI Staging
 
-`.github/workflows/staging_deploy_main.yml`:
+`.github/workflows/ai_staging_deploy.yml`:
 
 - триггер: push в `main`;
 - шаги:
   - checkout репозитория и `codexctl`;
   - сборка `codexctl`;
-  - `codexctl ci images --env staging --mirror --build` в локальный registry `localhost:5000`;
-  - `codexctl ci apply --env staging --wait --preflight`.
+  - `codexctl ci images --env ai-staging --mirror --build` в локальный registry `localhost:5000`;
+  - `codexctl ci apply --env ai-staging --wait --preflight`.
 
 ### Dev‑AI слоты и агенты
 

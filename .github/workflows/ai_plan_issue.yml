@@ -29,7 +29,7 @@ jobs:
     name: "Allocate plan slot 🧩"
     runs-on: self-hosted
     timeout-minutes: 360
-    environment: staging
+    environment: ai-staging
     outputs:
       slot: ${{ steps.alloc.outputs.slot }}
       namespace: ${{ steps.alloc.outputs.namespace }}
@@ -53,7 +53,7 @@ jobs:
     needs: [create-ai-plan]
     name: "Deploy AI plan env 🚀"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     outputs:
       infra_ready: ${{ steps.ensure.outputs.infra_ready }}
       infra_unhealthy: ${{ steps.ensure.outputs.infra_unhealthy }}
@@ -87,7 +87,7 @@ jobs:
     needs: [create-ai-plan, deploy-ai-plan]
     name: "Run planning agent 🤖"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     env:
       CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
       CODEXCTL_INFRA_UNHEALTHY: ${{ needs.deploy-ai-plan.outputs.infra_unhealthy }}
@@ -117,7 +117,7 @@ jobs:
       (needs.create-ai-plan.result != 'success' || needs.deploy-ai-plan.result != 'success' || needs.run-codex-plan.result != 'success')
     name: "Cleanup plan env on failure 🧹"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     env:
       CODEXCTL_GH_PAT:   ${{ secrets.CODEXCTL_GH_PAT }}
     steps:

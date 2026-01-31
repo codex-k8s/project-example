@@ -314,17 +314,17 @@ mkdir -p ~/codex/envs ~/codex/data
 По умолчанию в `services.yaml`:
 
 - `registry: localhost:5000`;
-- `environments.staging.kubeconfig: "/home/runner/.kube/microk8s.config"`;
+- `environments.ai-staging.kubeconfig: "/home/runner/.kube/microk8s.config"`;
 - домены:
   - `baseDomain.dev` по умолчанию `dev.example-domain.ru`;
-  - `baseDomain.staging` по умолчанию `staging.example-domain.ru`;
-  - `baseDomain.ai` по умолчанию совпадает с `staging`.
+  - `baseDomain.ai-staging` по умолчанию `ai-staging.example-domain.ru`;
+  - `baseDomain.ai` по умолчанию совпадает с `ai-staging`.
 
 Эти домены можно переопределить через переменные окружения:
 
 - `BASE_DOMAIN_DEV` — домен для dev‑окружения;
-- `BASE_DOMAIN_STAGING` — домен для стейджинга;
-- `BASE_DOMAIN_AI` — домен для AI‑слотов (если не задан, берётся `BASE_DOMAIN_STAGING`).
+- `BASE_DOMAIN_AI_STAGING` — домен для стейджинга;
+- `BASE_DOMAIN_AI` — домен для AI‑слотов (если не задан, берётся `BASE_DOMAIN_AI_STAGING`).
 
 Рекомендуется задать их как Repository Variables в GitHub и/или
 как переменные среды при запуске `codexctl`.
@@ -339,9 +339,9 @@ mkdir -p ~/codex/envs ~/codex/data
 
 Рекомендуемые переменные:
 
-- `CODEXCTL_CODE_ROOT_BASE` — базовый каталог для исходников dev‑AI слотов и staging‑копии репозитория (пример: `/home/runner/codex/envs`):
+- `CODEXCTL_CODE_ROOT_BASE` — базовый каталог для исходников dev‑AI слотов и ai-staging‑копии репозитория (пример: `/home/runner/codex/envs`):
   - dev‑AI слоты: `${CODEXCTL_CODE_ROOT_BASE}/<slot>/src`;
-  - staging: `${CODEXCTL_CODE_ROOT_BASE}/staging/src`;
+  - ai-staging: `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src`;
   например `/home/runner/codex/envs/`;
 - `CODEXCTL_DATA_ROOT` — каталог с данными БД/Redis (пример: `/home/runner/codex/data`);
 - `CODEXCTL_DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
@@ -363,7 +363,7 @@ mkdir -p ~/codex/envs ~/codex/data
 
 - `deploy/secret.yaml`;
 - `services.yaml` (hook’и и apply);
-- GitHub Actions (`staging_deploy_main.yml`, `ai_*` воркфлоу).
+- GitHub Actions (`ai_staging_deploy.yml`, `ai_*` воркфлоу).
 
 ## 6. Первый деплой стейджинга
 
@@ -371,27 +371,27 @@ mkdir -p ~/codex/envs ~/codex/data
 
 1. Убедитесь, что изменения закоммичены и пушнуты в ветку `main`.
 2. В GitHub во вкладке Actions появится workflow
-   **“Staging deploy 🚀”** (`.github/workflows/staging_deploy_main.yml`).
+   **“AI Staging deploy 🚀”** (`.github/workflows/ai_staging_deploy.yml`).
 3. При следующем push в `main`:
-   - соберутся и отзеркалятся необходимые образы (`CODEXCTL_ENV=staging`, `CODEXCTL_MIRROR_IMAGES=1`, `CODEXCTL_BUILD_IMAGES=1`,
+   - соберутся и отзеркалятся необходимые образы (`CODEXCTL_ENV=ai-staging`, `CODEXCTL_MIRROR_IMAGES=1`, `CODEXCTL_BUILD_IMAGES=1`,
      далее `codexctl ci images`);
-   - исходники будут синхронизированы в `${CODEXCTL_CODE_ROOT_BASE}/staging/src` и примонтированы в staging‑подах;
-   - `codexctl ci apply` применит инфраструктуру и сервисы (`CODEXCTL_ENV=staging`, `CODEXCTL_PREFLIGHT=true`, `CODEXCTL_WAIT=true`);
-   - в кластере появится неймспейс `project-example-staging`.
+   - исходники будут синхронизированы в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src` и примонтированы в ai-staging‑подах;
+   - `codexctl ci apply` применит инфраструктуру и сервисы (`CODEXCTL_ENV=ai-staging`, `CODEXCTL_PREFLIGHT=true`, `CODEXCTL_WAIT=true`);
+   - в кластере появится неймспейс `project-example-ai-staging`.
 
 Проверка:
 
 ```bash
-microk8s kubectl get pods -n project-example-staging
-microk8s kubectl get ingress -n project-example-staging
+microk8s kubectl get pods -n project-example-ai-staging
+microk8s kubectl get ingress -n project-example-ai-staging
 ```
 
-Если DNS и TLS настроены, фронтенд будет доступен по `https://staging.example-domain.ru/` (по вашему домену).
+Если DNS и TLS настроены, фронтенд будет доступен по `https://ai-staging.example-domain.ru/` (по вашему домену).
 
 Для локального теста можно:
 
 ```bash
-microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:80
+microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 8080:80
 ```
 
 и открыть `http://localhost:8080`.
@@ -437,10 +437,10 @@ microk8s kubectl port-forward -n project-example-staging svc/web-frontend 8080:8
 2. Повесьте метку `[ai-repair]`.
 3. Запустится workflow `ai_repair_issue.yml`:
    - выделит слот `ai-repair`;
-   - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/staging/src`;
-   - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-staging`;
+   - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src`;
+   - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-ai-staging`;
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
-4. Для PR с правками staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
+4. Для PR с правками ai-staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
 
 ## 10. Флоу review/fix для PR
 

@@ -22,7 +22,7 @@ jobs:
   cleanup:
     name: "Cleanup AI environments 🧼"
     runs-on: self-hosted
-    environment: staging
+    environment: ai-staging
     env:
       CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}
     steps:

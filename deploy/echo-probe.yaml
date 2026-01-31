@@ -1,4 +1,4 @@
-{{- if eq .Env "staging" }}
+{{- if eq .Env "ai-staging" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,7 +45,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: {{ index .BaseDomain "staging" }}
+    - host: {{ index .BaseDomain "ai-staging" }}
       http:
         paths:
           - path: /_probe
