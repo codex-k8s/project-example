@@ -9,10 +9,11 @@ codex:
   modelReasoningEffort: "medium"
   promptLang: "ru"
   extraTools:
-    - psql
-    - redis-cli
-    - go
-    - node
+    - psql - работа с PostgreSQL
+    - redis-cli - работа с Redis
+    - go - компиляция и запуск Go-программ
+    - dupl - поиск дублирующегося кода в Go-проектах
+    - golangci-lint - статический анализ Go-кода
   links:
     - title: Chat frontend
       path: /
@@ -29,7 +30,7 @@ codex:
   timeouts:
     exec: "60m"
     rollout: "30m"
-    deployWait: "1m"
+    deployWait: "5m"
 
 namespace:
   patterns:
@@ -38,7 +39,7 @@ namespace:
     ai: "{{ .Project }}-dev-{{ .Slot }}"
     ai-repair: "{{ .Project }}-ai-repair-{{ .Slot }}"
 
-maxSlots: 0
+maxSlots: 10
 
 registry: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}'
 
