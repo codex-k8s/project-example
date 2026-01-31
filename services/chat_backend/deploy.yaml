@@ -1,4 +1,4 @@
-{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 {{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
 {{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
 apiVersion: v1
@@ -26,10 +26,6 @@ spec:
       labels:
         app: chat-backend
     spec:
-      {{- if eq .Env "ai" }}
-      securityContext:
-        fsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
-      {{- end }}
       dnsPolicy: ClusterFirst
       dnsConfig:
         searches:
@@ -66,11 +62,6 @@ spec:
           ports:
             - containerPort: 8080
               name: http
-          {{- if or (eq .Env "ai") (eq .Env "ai-staging") }}
-          securityContext:
-            runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
-            runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
-          {{- end }}
           livenessProbe:
             httpGet:
               path: /health/livez

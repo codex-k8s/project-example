@@ -23,10 +23,7 @@ env:
   CODEXCTL_WORKSPACE_PVC:   ${{ vars.CODEXCTL_WORKSPACE_PVC }}
   CODEXCTL_DATA_PVC:        ${{ vars.CODEXCTL_DATA_PVC }}
   CODEXCTL_REGISTRY_PVC:    ${{ vars.CODEXCTL_REGISTRY_PVC }}
-  CODEXCTL_REGISTRY_HOST:   ${{ vars.CODEXCTL_REGISTRY_HOST }}
   CODEXCTL_SYNC_IMAGE:      ${{ vars.CODEXCTL_SYNC_IMAGE }}
-  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
-  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
@@ -40,7 +37,7 @@ jobs:
       github.event.issue.pull_request == null &&
       contains(github.event.comment.body, '[ai-plan]') &&
       contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai]
     environment: ai-staging
     env:
       CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}

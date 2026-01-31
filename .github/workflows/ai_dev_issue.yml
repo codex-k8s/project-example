@@ -23,10 +23,7 @@ env:
   CODEXCTL_WORKSPACE_PVC:   ${{ vars.CODEXCTL_WORKSPACE_PVC }}
   CODEXCTL_DATA_PVC:        ${{ vars.CODEXCTL_DATA_PVC }}
   CODEXCTL_REGISTRY_PVC:    ${{ vars.CODEXCTL_REGISTRY_PVC }}
-  CODEXCTL_REGISTRY_HOST:   ${{ vars.CODEXCTL_REGISTRY_HOST }}
   CODEXCTL_SYNC_IMAGE:      ${{ vars.CODEXCTL_SYNC_IMAGE }}
-  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
-  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
@@ -37,7 +34,7 @@ jobs:
   create-ai:
     name: "Allocate slot 🧩"
     if: github.event.label.name == '[ai-dev]' && contains(format(',{0},', vars.CODEXCTL_ALLOWED_USERS), format(',{0},', github.actor))
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai]
     timeout-minutes: 360
     environment: ai-staging
     outputs:
@@ -62,7 +59,7 @@ jobs:
   deploy-ai:
     needs: [create-ai]
     name: "Deploy AI environment 🚀"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai]
     environment: ai-staging
     outputs:
       infra_ready: ${{ steps.ensure.outputs.infra_ready }}
@@ -96,7 +93,7 @@ jobs:
   run-codex:
     needs: [create-ai, deploy-ai]
     name: "Run dev agent 🤖"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai]
     environment: ai-staging
     env:
       CODEXCTL_GH_PAT:   ${{ secrets.CODEXCTL_GH_PAT }}
@@ -193,7 +190,7 @@ jobs:
       always() &&
       (needs.create-ai.result != 'success' || needs.deploy-ai.result != 'success' || needs.run-codex.result != 'success')
     name: "Cleanup on failure 🧹"
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai]
     environment: ai-staging
     env:
       CODEXCTL_GH_PAT: ${{ secrets.CODEXCTL_GH_PAT }}

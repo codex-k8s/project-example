@@ -7,7 +7,7 @@
 # {{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
 # {{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
 # {{- $registryPVC := envOr "CODEXCTL_REGISTRY_PVC" (printf "%s-registry" .Project) -}}
-# {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
+# {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 project: project-example
 
 codex:
@@ -51,11 +51,11 @@ registry: '{{ $registryHost }}'
 
 storage:
   workspace:
-    size: "50Gi"
+    size: "10Gi"
     accessModes: ["ReadWriteMany"]
     storageClass: '{{ envOr "CODEXCTL_STORAGE_CLASS_WORKSPACE" "" }}'
   data:
-    size: "20Gi"
+    size: "10Gi"
     accessModes: ["ReadWriteOnce"]
     storageClass: '{{ envOr "CODEXCTL_STORAGE_CLASS_DATA" "" }}'
   registry:
@@ -159,7 +159,7 @@ environments:
     kubeconfig: "/home/user/.kube/project-example-dev"
     imagePullPolicy: IfNotPresent
   ai-staging:
-    kubeconfig: "/home/runner/.kube/microk8s.config"
+    kubeconfig: '{{ envOr "CODEXCTL_KUBECONFIG" "" }}'
     imagePullPolicy: Always
   ai:
     from: "ai-staging"

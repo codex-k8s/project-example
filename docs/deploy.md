@@ -27,9 +27,10 @@
 
 ```bash
 ENV=ai-staging
+NAMESPACE=project-example-ai-staging
 
-CODEXCTL_REGISTRY_HOST="registry.project-example-ai-staging.svc.cluster.local:5000" codexctl images mirror --env "$ENV"
-CODEXCTL_REGISTRY_HOST="registry.project-example-ai-staging.svc.cluster.local:5000" codexctl images build  --env "$ENV"
+CODEXCTL_REGISTRY_HOST="registry.${NAMESPACE}.svc.cluster.local:5000" codexctl images mirror --env "$ENV"
+CODEXCTL_REGISTRY_HOST="registry.${NAMESPACE}.svc.cluster.local:5000" codexctl images build  --env "$ENV"
 
 codexctl apply --env "$ENV" --wait --preflight
 ```

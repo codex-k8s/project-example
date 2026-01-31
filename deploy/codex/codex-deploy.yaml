@@ -14,14 +14,9 @@ spec:
       labels:
         app: codex
     spec:
-      securityContext:
-        fsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
       serviceAccountName: codex-sa
       containers:
         - name: codex
-          securityContext:
-            runAsUser: {{ envOr "CODEXCTL_WORKSPACE_UID" "1000" }}
-            runAsGroup: {{ envOr "CODEXCTL_WORKSPACE_GID" "1000" }}
           image: "codex-placeholder:latest"
           workingDir: "/workspace"
           imagePullPolicy: Always

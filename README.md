@@ -15,7 +15,11 @@
   - восстановление стейджинга агентом по метке `[ai-repair]` (если что‑то сломалось);
   - review/fix по ревью PR.
 
-## 1. Подготовка VPS (Ubuntu 24.04)
+## 1. Подготовка кластера (Ubuntu 24.04)
+
+Примечание: в этом проекте self‑hosted runner работает только внутри Kubernetes.
+Команды ниже нужны для подготовки кластера и базового runner‑образа/runner‑пода,
+а не для запуска runner на хосте.
 
 ### 1.1. Базовые пакеты
 
@@ -24,21 +28,7 @@ sudo apt-get update
 sudo apt-get install -y git curl jq build-essential ca-certificates software-properties-common
 ```
 
-### 1.2. Создание пользователя runner (если есть только root)
-
-Если на VPS сейчас есть только пользователь `root`, создайте отдельного
-пользователя `runner`, под которым будут работать GitHub Runner и все dev‑флоу:
-
-```bash
-adduser runner
-usermod -aG sudo runner
-su runner
-```
-
-Далее рекомендуется подключаться к серверу по SSH уже под пользователем `runner`
-и выполнять большинство команд от его имени (через `sudo`, где требуется).
-
-### 1.3. Установка microk8s
+### 1.2. Установка microk8s
 
 ```bash
 sudo apt install snapd
@@ -60,30 +50,30 @@ microk8s status --wait-ready
 microk8s kubectl get nodes
 ```
 
-Сохраняем kubeconfig для стейджинга (под runner’ом) и сделаем его по умолчанию:
+Сохраняем kubeconfig для админского доступа (опционально):
 
 ```bash
-mkdir -p /home/runner/.kube
-microk8s config | sudo tee /home/runner/.kube/microk8s.config >/dev/null
-sudo chown -R runner:runner /home/runner/.kube
-ln -sfn /home/runner/.kube/microk8s.config /home/runner/.kube/config
+mkdir -p ~/.kube
+microk8s config | sudo tee ~/.kube/microk8s.config >/dev/null
+sudo chown -R "$USER":"$USER" ~/.kube
+ln -sfn ~/.kube/microk8s.config ~/.kube/config
 ```
 
-### 1.4. Kaniko и registry в кластере
+### 1.3. Kaniko и registry в кластере
 
 Сборка образов выполняется Kaniko в CI, локальный Docker не нужен.
-В `services.yaml` развёрнут in‑cluster registry (Deployment + Service + PVC),
-по умолчанию доступный как:
+В `services.yaml` развёрнут in‑cluster registry (Deployment + Service + PVC)
+в каждом namespace (ai‑staging и ai‑слоты), по умолчанию доступный как:
 
 ```
-registry.<project>-ai-staging.svc.cluster.local:5000
+registry.<namespace>.svc.cluster.local:5000
 ```
 
 Что требуется на runner:
 
 - бинарник `kaniko` (по умолчанию `/kaniko/executor`, либо задайте `CODEXCTL_KANIKO_EXECUTOR`);
-- доступ к кластеру через `CODEXCTL_KUBECONFIG` или kubeconfig внутри runner‑pod;
-- переменная `CODEXCTL_REGISTRY_HOST` (если нужно переопределить адрес реестра).
+- доступ к кластеру (in‑cluster service account и/или `CODEXCTL_KUBECONFIG`);
+- переменная `CODEXCTL_REGISTRY_HOST` (опционально, для переопределения; по умолчанию `registry.<namespace>.svc.cluster.local:5000`).
 
 Если registry без TLS, задайте в окружении CI:
 
@@ -94,7 +84,7 @@ CODEXCTL_KANIKO_SKIP_TLS_VERIFY_PULL=true
 ```
 
 
-### 1.5. Установка Golang 1.25+
+### 1.4. Установка Golang 1.25+
 
 Через snap:
 
@@ -102,27 +92,14 @@ CODEXCTL_KANIKO_SKIP_TLS_VERIFY_PULL=true
 sudo snap install go --classic
 ```
 
-Если Go установлен через snap, бинарники лежат в `/snap/bin`. Чтобы `go`/`gofmt`
-были доступны в не‑интерактивных сессиях (например, GitHub Actions runner),
-рекомендуется один из вариантов:
+Если `codexctl` ставится через `go install` внутри runner‑pod, убедитесь, что
+`go`/`gofmt` доступны в `PATH`:
 
 Вариант A (проще и надежнее):
 
 ```bash
 sudo ln -sf /snap/bin/go /usr/local/bin/go
 sudo ln -sf /snap/bin/gofmt /usr/local/bin/gofmt
-```
-
-Вариант B (через PATH в systemd‑сервисе runner):
-
-```bash
-sudo systemctl edit actions.runner.*.service
-# добавить:
-# [Service]
-# Environment=PATH=/snap/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-sudo systemctl daemon-reload
-sudo systemctl restart actions.runner.*.service
 ```
 
 Либо вручную:
@@ -140,7 +117,7 @@ echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 1.6. Установка kubectl
+### 1.5. Установка kubectl
 
 Для работы `codexctl` с Kubernetes нужен бинарник `kubectl`. Установим его
 в `/usr/local/bin/kubectl` (эта директория добавлена в `PATH` в воркфлоу).
@@ -200,13 +177,8 @@ echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-Чтобы `codexctl` был доступен в GitHub Actions (не‑интерактивные shell, без `.bashrc`),
-скопируйте бинарь в `/usr/local/bin`:
-
-```bash
-sudo cp "$(go env GOPATH)/bin/codexctl" /usr/local/bin/codexctl
-sudo chmod +x /usr/local/bin/codexctl
-```
+Если runner‑образ не содержит `codexctl`, его можно ставить в workflow через
+`go install` или собрать кастомный runner‑образ с предустановленным `codexctl`.
 
 ## 2. Структура проекта
 
@@ -225,39 +197,105 @@ sudo chmod +x /usr/local/bin/codexctl
 - `.github/workflows/*.yml` — CI/CD и AI‑воркфлоу;
 - `docs/*.md` — документация по архитектуре, моделям, деплою и т.д.
 
-## 3. Установка self‑hosted GitHub Runner
+## 3. Запуск self‑hosted GitHub Runner в Kubernetes
 
-1. В интерфейсе GitHub репозитория:
-   - Settings → Actions → Runners → New self‑hosted runner;
-   - выберите Linux x64 и выполните предложенные команды на VPS
-     (создание каталога, скачивание архива, запуск `config.sh`).
-2. Запустите runner как сервис (рекомендуется):
+Рекомендуемый путь — GitHub Actions Runner Controller (ARC) в кластере.
+В этом проекте поддерживается только in‑cluster запуск: runner’ы работают
+исключительно в pod’ах Kubernetes.
+Схема установки (высокоуровнево):
 
-> ниже пример для версии runner’а 2.329.0
-```bash
-cd ~/
-mkdir actions-runner && cd actions-runner
+- установить ARC в кластер (Helm‑чарт);
+- создать RunnerScaleSet/RunnerDeployment в нужном namespace;
+- добавить label’ы, которые используются в `runs-on` (например, `ai-staging` и `ai`);
+- использовать runner‑образ с установленными `kubectl`, `gh`, `git`, `bash`, `kaniko`
+  (и при необходимости `go`/`codexctl`, либо ставить `codexctl` в workflow);
+- выдать serviceAccount права на namespace, с которыми работает `codexctl`.
 
-curl -o actions-runner-linux-x64-2.329.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.329.0/actions-runner-linux-x64-2.329.0.tar.gz
-echo "194f1e1e4bd02f80b7e9633fc546084d8d4e19f3928a324d512ea53430102e1d  actions-runner-linux-x64-2.329.0.tar.gz" | shasum -a 256 -c
-tar xzf ./actions-runner-linux-x64-2.329.0.tar.gz
+В этом репозитории workflows используют:
 
-./config.sh --url https://github.com/codex-k8s/project-example --token YOUR_RUNNER_TOKEN
-// нажимайте Enter для имени и выбора типа runner’а
-
-sudo ./svc.sh install
-sudo ./svc.sh start
+```
+runs-on: [self-hosted, ai]         # AI-dev слоты
+runs-on: [self-hosted, ai-staging] # deploy/repair/cleanup ai-staging
 ```
 
-Убедитесь, что runner работает от пользователя, который:
+Если хотите изолировать исполнение по namespace, создайте отдельные runner‑деплойменты
+с разными label и обновите `runs-on` в соответствующих воркфлоу.
 
-- входит в группу `microk8s` (если используете microk8s);
-- видит kubeconfig по пути `/home/runner/.kube/microk8s.config`.
+### 3.1. Пример ARC (две группы runner’ов)
+
+Ниже — укороченный пример Helm values для двух RunnerScaleSet. Установите chart
+два раза с разными values (пример для `ai` и `ai-staging`).
+
+```yaml
+# values-ai.yaml
+githubConfigUrl: https://github.com/ORG/REPO
+githubConfigSecret: gha-runner-secret
+runnerScaleSetName: ai
+runnerLabels: ["ai"]
+template:
+  spec:
+    serviceAccountName: gha-runner-ai
+    containers:
+      - name: runner
+        image: ghcr.io/ORG/codex-runner:latest
+        env:
+          - name: CODEXCTL_KUBECONFIG
+            value: /etc/kubeconfig/config
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /etc/kubeconfig
+            readOnly: true
+    volumes:
+      - name: kubeconfig
+        secret:
+          secretName: gha-runner-kubeconfig
+```
+
+```yaml
+# values-ai-staging.yaml
+githubConfigUrl: https://github.com/ORG/REPO
+githubConfigSecret: gha-runner-secret
+runnerScaleSetName: ai-staging
+runnerLabels: ["ai-staging"]
+template:
+  spec:
+    serviceAccountName: gha-runner-ai-staging
+    containers:
+      - name: runner
+        image: ghcr.io/ORG/codex-runner:latest
+        env:
+          - name: CODEXCTL_KUBECONFIG
+            value: /etc/kubeconfig/config
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /etc/kubeconfig
+            readOnly: true
+    volumes:
+      - name: kubeconfig
+        secret:
+          secretName: gha-runner-kubeconfig
+```
+
+Установка:
+
+```bash
+helm upgrade --install gha-runner-ai \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+  -f values-ai.yaml
+
+helm upgrade --install gha-runner-ai-staging \
+  oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \
+  -f values-ai-staging.yaml
+```
+
+Примечание: `serviceAccountName` должен иметь права на нужные namespace’ы,
+а `kubeconfig` можно генерировать под service account и класть в secret.
 
 По умолчанию в `services.yaml`:
 
-- `registry: registry.<project>-ai-staging.svc.cluster.local:5000`;
-- `environments.ai-staging.kubeconfig: "/home/runner/.kube/microk8s.config"`;
+- `registry: registry.<namespace>.svc.cluster.local:5000`;
+- `environments.ai-staging.kubeconfig` можно не задавать при in‑cluster запуске,
+  либо передать путь через `CODEXCTL_KUBECONFIG`;
 - домены:
   - `baseDomain.dev` по умолчанию `dev.example-domain.ru`;
   - `baseDomain.ai-staging` по умолчанию `ai-staging.example-domain.ru`;
@@ -293,7 +331,7 @@ sudo ./svc.sh start
 - `CODEXCTL_WORKSPACE_PVC` — имя PVC для исходников (например, `project-example-workspace`);
 - `CODEXCTL_DATA_PVC` — имя PVC для Postgres/Redis (например, `project-example-data`);
 - `CODEXCTL_REGISTRY_PVC` — имя PVC для registry (например, `project-example-registry`);
-- `CODEXCTL_REGISTRY_HOST` — адрес registry в кластере (например, `registry.project-example-ai-staging.svc.cluster.local:5000`);
+- `CODEXCTL_REGISTRY_HOST` — адрес registry в кластере (обычно не задаётся; по умолчанию `registry.<namespace>.svc.cluster.local:5000`). Примеры: `registry.project-example-ai-staging.svc.cluster.local:5000`, `registry.project-example-dev-1.svc.cluster.local:5000`.
 - `CODEXCTL_SYNC_IMAGE` — образ для синхронизации исходников (например, `busybox:1.37.0`);
 - `CODEXCTL_STORAGE_CLASS_WORKSPACE` — StorageClass для workspace PVC;
 - `CODEXCTL_STORAGE_CLASS_DATA` — StorageClass для data PVC;

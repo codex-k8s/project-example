@@ -1,5 +1,5 @@
 {{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
-{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 {{- $imagePullPolicy := ternary (eq .Env "ai-staging") "Always" "IfNotPresent" -}}
 apiVersion: apps/v1
 kind: Deployment

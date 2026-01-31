@@ -19,11 +19,8 @@ env:
   CODEXCTL_WORKSPACE_PVC:   ${{ vars.CODEXCTL_WORKSPACE_PVC }}
   CODEXCTL_DATA_PVC:        ${{ vars.CODEXCTL_DATA_PVC }}
   CODEXCTL_REGISTRY_PVC:    ${{ vars.CODEXCTL_REGISTRY_PVC }}
-  CODEXCTL_REGISTRY_HOST:   ${{ vars.CODEXCTL_REGISTRY_HOST }}
   CODEXCTL_SYNC_IMAGE:      ${{ vars.CODEXCTL_SYNC_IMAGE }}
   CODEXCTL_ENV:            ai-staging
-  CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
-  CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_REPO:           ${{ github.repository }}
 
 concurrency:
@@ -38,7 +35,7 @@ jobs:
       !contains(github.event.head_commit.message, '[skip-ci]') &&
       !contains(github.event.head_commit.message, '[no ci]') &&
       !contains(github.event.head_commit.message, '[no-ci]')
-    runs-on: self-hosted
+    runs-on: [self-hosted, ai-staging]
     environment: ai-staging
     steps:
       - name: "Checkout project-example 📥"
