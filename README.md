@@ -72,7 +72,6 @@ registry.<namespace>.svc.cluster.local:5000
 Что требуется на runner:
 
 - бинарник `kaniko` (по умолчанию `/kaniko/executor`, либо задайте `CODEXCTL_KANIKO_EXECUTOR`);
-- доступ к кластеру (in‑cluster service account и/или `CODEXCTL_KUBECONFIG`);
 - переменная `CODEXCTL_REGISTRY_HOST` (опционально, для переопределения; по умолчанию `registry.<namespace>.svc.cluster.local:5000`).
 
 Если registry без TLS, задайте в окружении CI:
@@ -193,6 +192,7 @@ source ~/.bashrc
   - `jaeger.yaml`, `dns.configmap.yaml`;
   - `cluster-issuer.yaml`, `ingress-nginx.controller.yaml`;
   - `codex/*` — Pod Codex, ingress для dev‑слотов и RBAC для service account `codex-sa`;
+  - `runner/*` — ARC runner’ы, RBAC и Dockerfile runner‑образа;
 - `services.yaml` — конфигурация `codexctl`;
 - `.github/workflows/*.yml` — CI/CD и AI‑воркфлоу;
 - `docs/*.md` — документация по архитектуре, моделям, деплою и т.д.
@@ -238,17 +238,6 @@ template:
     containers:
       - name: runner
         image: ghcr.io/ORG/codex-runner:latest
-        env:
-          - name: CODEXCTL_KUBECONFIG
-            value: /etc/kubeconfig/config
-        volumeMounts:
-          - name: kubeconfig
-            mountPath: /etc/kubeconfig
-            readOnly: true
-    volumes:
-      - name: kubeconfig
-        secret:
-          secretName: gha-runner-kubeconfig
 ```
 
 ```yaml
@@ -263,17 +252,6 @@ template:
     containers:
       - name: runner
         image: ghcr.io/ORG/codex-runner:latest
-        env:
-          - name: CODEXCTL_KUBECONFIG
-            value: /etc/kubeconfig/config
-        volumeMounts:
-          - name: kubeconfig
-            mountPath: /etc/kubeconfig
-            readOnly: true
-    volumes:
-      - name: kubeconfig
-        secret:
-          secretName: gha-runner-kubeconfig
 ```
 
 Установка:
@@ -288,14 +266,65 @@ helm upgrade --install gha-runner-ai-staging \
   -f values-ai-staging.yaml
 ```
 
-Примечание: `serviceAccountName` должен иметь права на нужные namespace’ы,
-а `kubeconfig` можно генерировать под service account и класть в secret.
+Примечание: `serviceAccountName` должен иметь права на нужные namespace’ы.
+
+### 3.2. Манифесты runner’ов, RBAC и связь с GitHub
+
+Готовые манифесты лежат в `deploy/runner/`:
+
+- `runner-scale-set-ai.yaml`, `runner-scale-set-ai-staging.yaml` — RunnerScaleSet для ARC;
+- `github-token-secret.yaml` / `github-app-secret.yaml` — секреты для связи с GitHub;
+- `rbac-ai-base.yaml` — ServiceAccount + ClusterRole для runner’ов `ai`;
+- `rbac-ai-slots.yaml` — RoleBinding для конкретного слота (применяется `codexctl` после создания слота);
+- `rbac-ai-staging.yaml` — права для runner’ов `ai-staging` в `project-example-ai-staging`;
+- `Dockerfile` — образ runner’а с `kubectl`, `gh`, `git`, `kaniko`, `go`, `codexctl`.
+
+Все манифесты рассчитаны на namespace `actions-runner-system`.
+
+Связь с GitHub:
+
+1. Вариант A (PAT, проще): создайте PAT с правами на репозиторий и self‑hosted runner’ы
+   и примените `deploy/runner/github-token-secret.yaml` (заменив токен).
+2. Вариант B (GitHub App, рекомендуется): создайте GitHub App с правами на Actions/Administration,
+   установите её в репозиторий и примените `deploy/runner/github-app-secret.yaml`.
+
+Перед применением замените `ORG/REPO` и `ghcr.io/ORG/codex-runner:latest` в `runner-scale-set-*.yaml`
+на свои значения и, при необходимости, поправьте namespace’ы под ваш проект.
+
+Минимальный чек‑лист:
+
+- `githubConfigUrl` должен указывать на репозиторий (`https://github.com/ORG/REPO`) или организацию;
+- `githubConfigSecret` в RunnerScaleSet должен совпадать с именем секрета (`gha-runner-secret`);
+- PAT/APP должен иметь права на управление self‑hosted runner’ами в целевом репозитории.
+
+Установка манифестов (пример):
+
+```bash
+kubectl apply -f deploy/runner/namespace.yaml
+# установить ARC (controller + CRD) в actions-runner-system
+kubectl apply -f deploy/runner/github-token-secret.yaml
+kubectl apply -f deploy/runner/rbac-ai-base.yaml
+kubectl apply -f deploy/runner/rbac-ai-staging.yaml
+kubectl apply -f deploy/runner/runner-scale-set-ai.yaml
+kubectl apply -f deploy/runner/runner-scale-set-ai-staging.yaml
+```
+
+Выбор образа runner’а:
+
+- соберите образ из `deploy/runner/Dockerfile` и запушьте в registry,
+  доступный из `actions-runner-system`;
+- укажите этот образ в `spec.template.spec.containers[0].image` в `runner-scale-set-*.yaml`.
+
+RBAC и удалённые namespace’ы:
+
+- RoleBinding создаётся в namespace; если namespace не существует — apply упадёт;
+- `rbac-ai-slots.yaml` применяется `codexctl` автоматически после создания слота,
+  поэтому ничего заранее создавать не нужно.
+  Это делается через `environments.ai.slotBootstrapInfra` в `services.yaml`.
 
 По умолчанию в `services.yaml`:
 
 - `registry: registry.<namespace>.svc.cluster.local:5000`;
-- `environments.ai-staging.kubeconfig` можно не задавать при in‑cluster запуске,
-  либо передать путь через `CODEXCTL_KUBECONFIG`;
 - домены:
   - `baseDomain.dev` по умолчанию `dev.example-domain.ru`;
   - `baseDomain.ai-staging` по умолчанию `ai-staging.example-domain.ru`;
@@ -424,16 +453,18 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 - дополнительно поправить код вручную;
 - дать агенту новые инструкции и перезапустить `[ai-dev]`.
 
-## 8. Флоу восстановления стейджинга
+## 8. Флоу восстановления ai‑staging
 
-1. Создайте Issue с описанием проблемы стейджинга.
+1. Создайте Issue с описанием проблемы ai‑staging.
 2. Повесьте метку `[ai-repair]`.
 3. Запустится workflow `ai_repair_issue.yml`:
    - выделит слот `ai-repair`;
    - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src`;
-   - поднимет Pod `codex` в namespace `project-example-ai-staging` (RBAC только для нужных ресурсов);
+   - поднимет Pod `codex` в namespace `project-example-ai-staging` (полный RBAC в namespace);
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
 4. Для PR с правками ai-staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
+
+Очистка `ai-repair` удаляет только ресурсы Codex/RBAC в namespace и не трогает сам namespace.
 
 ## 9. Флоу review/fix для PR
 

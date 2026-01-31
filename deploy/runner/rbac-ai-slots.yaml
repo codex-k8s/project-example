@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gha-runner-ai
+  namespace: {{ .Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: gha-runner-ai
+    namespace: actions-runner-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gha-runner-ai

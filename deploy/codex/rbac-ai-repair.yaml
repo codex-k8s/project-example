@@ -10,15 +10,9 @@ metadata:
   name: codex-ops
   namespace: {{ printf "%s-ai-staging" .Project }}
 rules:
-- apiGroups: ["", "apps", "batch", "networking.k8s.io"]
-  resources: ["deployments","deployments/scale","services","ingresses","statefulsets","jobs","configmaps","secrets"]
-  verbs: ["get","list","watch","create","update","patch","delete"]
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get","list","watch"]
-- apiGroups: [""]
-  resources: ["pods/log","pods/exec","pods/portforward"]
-  verbs: ["get","list","create"]
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

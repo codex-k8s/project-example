@@ -156,14 +156,15 @@ images:
 
 environments:
   dev:
-    kubeconfig: "/home/user/.kube/project-example-dev"
     imagePullPolicy: IfNotPresent
   ai-staging:
-    kubeconfig: '{{ envOr "CODEXCTL_KUBECONFIG" "" }}'
     imagePullPolicy: Always
   ai:
     from: "ai-staging"
     imagePullPolicy: IfNotPresent
+    slotBootstrapInfra:
+      - namespace-and-config
+      - runner-rbac
   ai-repair:
     from: "ai-staging"
     imagePullPolicy: IfNotPresent
@@ -176,6 +177,11 @@ infrastructure:
       - path: deploy/configmap.yaml
       - path: deploy/secret.yaml
 
+  - name: runner-rbac
+    when: '{{ eq .Env "ai" }}'
+    manifests:
+      - path: deploy/runner/rbac-ai-slots.yaml
+
   - name: workspace-pvc
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
@@ -187,7 +193,7 @@ infrastructure:
       - path: deploy/pvc-data.yaml
 
   - name: registry
-    when: '{{ eq .Env "ai-staging" }}'
+    when: '{{ or (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/registry.yaml
 
@@ -374,7 +380,7 @@ services:
             claimName: '{{ $workspacePVC }}'
             mountPath: "/workspace"
             subPath: '{{ $aiStagingCodeRoot }}'
-        dropKinds: ["Ingress"]
+        dropKinds: ["Ingress", "ServiceAccount", "Role", "RoleBinding"]
     hooks:
       afterApply:
         - name: reuse-dev-tls-secret

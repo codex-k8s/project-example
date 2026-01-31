@@ -7,7 +7,7 @@
 
 - `project: project-example`;
 - `baseDomain` — домены для `dev`, `ai-staging`, `ai`;
-- `environments` — kubeconfig и политика загрузки образов;
+- `environments` — политика загрузки образов и настройки окружений;
 - `images` — сборка образов Django/Go/Vue и Codex;
 - `infrastructure` — группы манифестов (namespace, PostgreSQL, Redis, Jaeger и т.д.);
 - `services` — прикладные сервисы и Codex‑Pod.
@@ -18,8 +18,7 @@
 - `ai-staging` — общее стейдж‑окружение (namespace `project-example-ai-staging`);
 - `ai` — dev‑AI слоты (`project-example-dev-<slot>`), в которых работает Codex.
 
-Параметры подключения к кластеру задаются в блоке `environments.*`
-и/или через переменную `CODEXCTL_KUBECONFIG`.
+Подключение к кластеру выполняется in‑cluster через service account runner’а.
 
 ## Базовой цикл деплоя (локально)
 
