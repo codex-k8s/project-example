@@ -438,7 +438,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 3. Запустится workflow `ai_repair_issue.yml`:
    - выделит слот `ai-repair`;
    - синхронизирует исходники в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src`;
-   - поднимет Pod `codex` в отдельном namespace с RBAC‑доступом к namespace `project-example-ai-staging`;
+   - поднимет Pod `codex` в namespace `project-example-ai-staging` (RBAC только для нужных ресурсов);
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
 4. Для PR с правками ai-staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
 

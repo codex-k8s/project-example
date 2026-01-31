@@ -37,7 +37,7 @@ namespace:
     dev: "{{ .Project }}-dev"
     ai-staging: "{{ .Project }}-ai-staging"
     ai: "{{ .Project }}-dev-{{ .Slot }}"
-    ai-repair: "{{ .Project }}-ai-repair-{{ .Slot }}"
+    ai-repair: "{{ .Project }}-ai-staging"
 
 maxSlots: 10
 
@@ -171,7 +171,7 @@ hooks:
 
 infrastructure:
   - name: namespace-and-config
-    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") (eq .Env "ai-repair") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     manifests:
       - path: deploy/namespace.yaml
       - path: deploy/configmap.yaml

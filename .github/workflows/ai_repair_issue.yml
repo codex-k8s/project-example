@@ -73,7 +73,7 @@ jobs:
           CODEXCTL_SLOT:           ${{ needs.create-ai-repair.outputs.slot }}
           CODEXCTL_PREFLIGHT:      true
           CODEXCTL_WAIT:           true
-          CODEXCTL_ONLY_INFRA:     namespace-and-config,codex-ai-repair-rbac
+          CODEXCTL_ONLY_INFRA:     codex-ai-repair-rbac
           CODEXCTL_ONLY_SERVICES:  codex
           OPENAI_API_KEY:          ${{ secrets.OPENAI_API_KEY }}
           CONTEXT7_API_KEY:        ${{ secrets.CONTEXT7_API_KEY }}
