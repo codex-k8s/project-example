@@ -8,7 +8,19 @@ env:
   CODEXCTL_GH_USERNAME:    ${{ vars.CODEXCTL_GH_USERNAME }}
   CODEXCTL_GH_EMAIL:       ${{ vars.CODEXCTL_GH_EMAIL }}
   CODEXCTL_CODE_ROOT_BASE: ${{ vars.CODEXCTL_CODE_ROOT_BASE }}
-  CODEXCTL_DATA_ROOT:      ${{ vars.CODEXCTL_DATA_ROOT }}
+  CODEXCTL_BASE_DOMAIN_DEV:        ${{ vars.CODEXCTL_BASE_DOMAIN_DEV }}
+  CODEXCTL_BASE_DOMAIN_AI_STAGING: ${{ vars.CODEXCTL_BASE_DOMAIN_AI_STAGING }}
+  CODEXCTL_BASE_DOMAIN_AI:         ${{ vars.CODEXCTL_BASE_DOMAIN_AI }}
+  CODEXCTL_STORAGE_CLASS_WORKSPACE: ${{ vars.CODEXCTL_STORAGE_CLASS_WORKSPACE }}
+  CODEXCTL_STORAGE_CLASS_DATA:      ${{ vars.CODEXCTL_STORAGE_CLASS_DATA }}
+  CODEXCTL_STORAGE_CLASS_REGISTRY:  ${{ vars.CODEXCTL_STORAGE_CLASS_REGISTRY }}
+  CODEXCTL_KUBECONFIG:    ${{ vars.CODEXCTL_KUBECONFIG }}
+  CODEXCTL_WORKSPACE_MOUNT: /workspace
+  CODEXCTL_WORKSPACE_PVC:   ${{ vars.CODEXCTL_WORKSPACE_PVC }}
+  CODEXCTL_DATA_PVC:        ${{ vars.CODEXCTL_DATA_PVC }}
+  CODEXCTL_REGISTRY_PVC:    ${{ vars.CODEXCTL_REGISTRY_PVC }}
+  CODEXCTL_REGISTRY_HOST:   ${{ vars.CODEXCTL_REGISTRY_HOST }}
+  CODEXCTL_SYNC_IMAGE:      ${{ vars.CODEXCTL_SYNC_IMAGE }}
   CODEXCTL_ENV:            ai-staging
   CODEXCTL_WORKSPACE_UID:  ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID:  ${{ vars.CODEXCTL_WORKSPACE_GID }}
@@ -44,14 +56,15 @@ jobs:
         env:
           CODEXCTL_MIRROR_IMAGES: true
           CODEXCTL_BUILD_IMAGES:  true
-          REGISTRY_HOST: localhost:5000
+          CODEXCTL_KANIKO_INSECURE:        true
+          CODEXCTL_KANIKO_SKIP_TLS_VERIFY: true
+          CODEXCTL_KANIKO_SKIP_TLS_VERIFY_PULL: true
         run: |
           set -euo pipefail
           codexctl ci images
 
       - name: "Apply ai-staging via codexctl 🚀"
         env:
-          KUBECONFIG:           /home/runner/.kube/microk8s.config
           NO_PROXY:             127.0.0.1,localhost,::1
           GITHUB_RUN_ID:        ${{ github.run_id }}
           CODEXCTL_GH_PAT:         ${{ secrets.CODEXCTL_GH_PAT }}
@@ -62,33 +75,3 @@ jobs:
         run: |
           set -euo pipefail
           codexctl ci apply
-
-  gc-registry:
-    needs: deploy
-    runs-on: self-hosted
-    environment: ai-staging
-    steps:
-      - name: "Checkout 📥"
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.CODEXCTL_GH_PAT }}
-
-      - name: "GC docker registry container 🗑️"
-        run: |
-          set -euo pipefail
-          NAME="${DOCKER_REGISTRY_CONTAINER:-project-example-registry}"
-          if ! docker ps --format '{{.Names}}' | grep -q "^${NAME}$"; then
-            echo "info: registry container ${NAME} not running" >&2
-            exit 0
-          fi
-          echo "info: running registry GC inside ${NAME} (--delete-untagged=true)" >&2
-          set +e
-          docker exec "${NAME}" registry garbage-collect /etc/docker/registry/config.yml --delete-untagged=true
-          RC=$?
-          set -e
-          if [[ $RC -ne 0 ]]; then
-            echo "warn: GC with --delete-untagged failed; retrying without flag" >&2
-            docker exec "${NAME}" registry garbage-collect /etc/docker/registry/config.yml || true
-          fi
-          echo "info: GC finished" >&2
-        shell: bash

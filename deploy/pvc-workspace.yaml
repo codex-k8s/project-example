@@ -1,0 +1,32 @@
+{{- $size := "5Gi" -}}
+{{- $class := "" -}}
+{{- if .Storage -}}
+  {{- if .Storage.Workspace -}}
+    {{- if .Storage.Workspace.Size -}}
+      {{- $size = .Storage.Workspace.Size -}}
+    {{- end -}}
+    {{- if .Storage.Workspace.StorageClass -}}
+      {{- $class = .Storage.Workspace.StorageClass -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-workspace" .Project }}
+  namespace: {{ .Namespace }}
+spec:
+  accessModes:
+{{- if and .Storage .Storage.Workspace .Storage.Workspace.AccessModes }}
+{{- range .Storage.Workspace.AccessModes }}
+    - {{ . }}
+{{- end }}
+{{- else }}
+    - ReadWriteMany
+{{- end }}
+  resources:
+    requests:
+      storage: {{ $size }}
+{{- if $class }}
+  storageClassName: {{ $class }}
+{{- end }}

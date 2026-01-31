@@ -69,85 +69,29 @@ sudo chown -R runner:runner /home/runner/.kube
 ln -sfn /home/runner/.kube/microk8s.config /home/runner/.kube/config
 ```
 
-### 1.4. Установка Docker и insecure‑registry
+### 1.4. Kaniko и registry в кластере
 
-```bash
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+Сборка образов выполняется Kaniko в CI, локальный Docker не нужен.
+В `services.yaml` развёрнут in‑cluster registry (Deployment + Service + PVC),
+по умолчанию доступный как:
 
-# Add the repository to Apt sources:
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-Components: stable
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-sudo usermod -aG docker "$USER"
-sudo usermod -aG docker runner
+```
+registry.<project>-ai-staging.svc.cluster.local:5000
 ```
 
-Добавляем `localhost:5000` (встроенный registry microk8s) в insecure‑registries:
+Что требуется на runner:
 
-```bash
-sudo mkdir -p /etc/docker
-cat <<EOF | sudo tee /etc/docker/daemon.json
-{
-  "insecure-registries": [
-    "localhost:5000"
-  ]
-}
-EOF
+- бинарник `kaniko` (по умолчанию `/kaniko/executor`, либо задайте `CODEXCTL_KANIKO_EXECUTOR`);
+- доступ к кластеру через `CODEXCTL_KUBECONFIG` или kubeconfig внутри runner‑pod;
+- переменная `CODEXCTL_REGISTRY_HOST` (если нужно переопределить адрес реестра).
 
-sudo systemctl restart docker
+Если registry без TLS, задайте в окружении CI:
+
 ```
-
-После установки Docker **обязательно авторизуйтесь на Docker Hub** под пользователем,
-от имени которого запускается runner (обычно `runner`), чтобы избежать лимитов
-на анонимные `pull`:
-
-```bash
-sudo -iu runner
-docker login
+CODEXCTL_KANIKO_INSECURE=true
+CODEXCTL_KANIKO_SKIP_TLS_VERIFY=true
+CODEXCTL_KANIKO_SKIP_TLS_VERIFY_PULL=true
 ```
-
-Логин/пароль берутся от вашего Docker Hub аккаунта. Без этого при работе
-`codexctl images mirror`/`build` можно упереться в сообщение вида:
-
-> You have reached your unauthenticated pull rate limit.
-
-### 1.4.1. Docker socket для Codex‑pod
-
-В `services.yaml` для сервиса `codex` настроен `hostMount` на `/var/run/docker.sock`.
-Это нужно, чтобы внутри pod’а работали команды `docker` (например, при сборке образов).
-
-Так как pod запускается от пользователя `runner` с UID/GID `1000`,
-нужно дать этому GID доступ к сокету Docker на хосте:
-```bash
-sudo apt-get install -y acl
-sudo setfacl -m g:1000:rw /var/run/docker.sock
-getfacl /var/run/docker.sock | grep -E 'group:1000|mask'
-```
-
-Чтобы права не сбрасывались после перезапуска Docker, добавьте post‑hook:
-
-```bash
-sudo systemctl edit docker
-# [Service]
-# ExecStartPost=/bin/setfacl -m g:1000:rw /var/run/docker.sock
-
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-```
-
-
-Если UID/GID отличается от `1000`, задайте `CODEXCTL_WORKSPACE_UID/GID`
-для pod’а codex и выдайте доступ к сокету соответствующей группе.
 
 
 ### 1.5. Установка Golang 1.25+
@@ -214,27 +158,33 @@ kubectl version --client --output=yaml || true
 - `bash` (обычно уже установлен);
 - `git`;
 - `gh` (GitHub CLI);
-- `docker` (для сборки/пуша образов);
 - `kubectl`;
-- `rsync` (опционально, ускоряет синхронизацию).
+- `kaniko` (executor для сборки образов, по умолчанию `/kaniko/executor`
+  или путь из `CODEXCTL_KANIKO_EXECUTOR`).
 
 Проверка доступности утилит:
 
 ```bash
-for t in kubectl bash docker git gh rsync; do
+KANIKO_EXECUTOR="${CODEXCTL_KANIKO_EXECUTOR:-/kaniko/executor}"
+for t in kubectl bash git gh; do
   if command -v "$t" >/dev/null 2>&1; then
     echo "OK  $t -> $(command -v "$t")"
   else
     echo "MISS $t"
   fi
 done
+if [ -x "$KANIKO_EXECUTOR" ]; then
+  echo "OK  kaniko -> $KANIKO_EXECUTOR"
+else
+  echo "MISS kaniko ($KANIKO_EXECUTOR)"
+fi
 ```
 
-Установка `git`, `gh` и `rsync` (Ubuntu 24):
+Установка `git` и `gh` (Ubuntu 24):
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git rsync gh
+sudo apt-get install -y git gh
 ```
 
 Установка последней версии `codexctl`:
@@ -301,19 +251,12 @@ sudo ./svc.sh start
 
 Убедитесь, что runner работает от пользователя, который:
 
-- входит в группы `microk8s` и `docker`;
+- входит в группу `microk8s` (если используете microk8s);
 - видит kubeconfig по пути `/home/runner/.kube/microk8s.config`.
-
-## 4. Подготовка директорий
-
-```bash
-cd ~/
-mkdir -p ~/codex/envs ~/codex/data
-```
 
 По умолчанию в `services.yaml`:
 
-- `registry: localhost:5000`;
+- `registry: registry.<project>-ai-staging.svc.cluster.local:5000`;
 - `environments.ai-staging.kubeconfig: "/home/runner/.kube/microk8s.config"`;
 - домены:
   - `baseDomain.dev` по умолчанию `dev.example-domain.ru`;
@@ -322,9 +265,9 @@ mkdir -p ~/codex/envs ~/codex/data
 
 Эти домены можно переопределить через переменные окружения:
 
-- `BASE_DOMAIN_DEV` — домен для dev‑окружения;
-- `BASE_DOMAIN_AI_STAGING` — домен для стейджинга;
-- `BASE_DOMAIN_AI` — домен для AI‑слотов (если не задан, берётся `BASE_DOMAIN_AI_STAGING`).
+- `CODEXCTL_BASE_DOMAIN_DEV` — домен для dev‑окружения;
+- `CODEXCTL_BASE_DOMAIN_AI_STAGING` — домен для ai‑staging;
+- `CODEXCTL_BASE_DOMAIN_AI` — домен для AI‑слотов (если не задан, берётся `CODEXCTL_BASE_DOMAIN_AI_STAGING`).
 
 Рекомендуется задать их как Repository Variables в GitHub и/или
 как переменные среды при запуске `codexctl`.
@@ -333,17 +276,29 @@ mkdir -p ~/codex/envs ~/codex/data
 - `codex.timeouts.deployWait` в `services.yaml` управляет временем ожидания `kubectl wait` после `codexctl apply/ci ensure-ready`.
 - Значение по умолчанию — `10m` (если не задано в `services.yaml` и не переопределено флагом `--wait-timeout`).
 
-## 5. Переменные и секреты в GitHub
+## 4. Переменные и секреты в GitHub
 
 ### 5.1. Repository Variables (`Settings → Secrets and variables → Actions → Variables`)
 
 Рекомендуемые переменные:
 
-- `CODEXCTL_CODE_ROOT_BASE` — базовый каталог для исходников dev‑AI слотов и ai-staging‑копии репозитория (пример: `/home/runner/codex/envs`):
+- `CODEXCTL_CODE_ROOT_BASE` — базовый путь для исходников dev‑AI слотов и ai‑staging‑копии репозитория (пример: `/workspace/codex/envs`):
   - dev‑AI слоты: `${CODEXCTL_CODE_ROOT_BASE}/<slot>/src`;
   - ai-staging: `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src`;
-  например `/home/runner/codex/envs/`;
-- `CODEXCTL_DATA_ROOT` — каталог с данными БД/Redis (пример: `/home/runner/codex/data`);
+  например `/workspace/codex/envs/`;
+- `CODEXCTL_BASE_DOMAIN_DEV` — домен для dev‑окружения;
+- `CODEXCTL_BASE_DOMAIN_AI_STAGING` — домен для ai‑staging;
+- `CODEXCTL_BASE_DOMAIN_AI` — домен для AI‑слотов (если не задан, берётся `CODEXCTL_BASE_DOMAIN_AI_STAGING`);
+- `CODEXCTL_WORKSPACE_MOUNT` — точка монтирования рабочей PVC (обычно `/workspace`);
+- `CODEXCTL_WORKSPACE_PVC` — имя PVC для исходников (например, `project-example-workspace`);
+- `CODEXCTL_DATA_PVC` — имя PVC для Postgres/Redis (например, `project-example-data`);
+- `CODEXCTL_REGISTRY_PVC` — имя PVC для registry (например, `project-example-registry`);
+- `CODEXCTL_REGISTRY_HOST` — адрес registry в кластере (например, `registry.project-example-ai-staging.svc.cluster.local:5000`);
+- `CODEXCTL_SYNC_IMAGE` — образ для синхронизации исходников (например, `busybox:1.37.0`);
+- `CODEXCTL_STORAGE_CLASS_WORKSPACE` — StorageClass для workspace PVC;
+- `CODEXCTL_STORAGE_CLASS_DATA` — StorageClass для data PVC;
+- `CODEXCTL_STORAGE_CLASS_REGISTRY` — StorageClass для registry PVC;
+- `CODEXCTL_KANIKO_EXECUTOR` — путь к kaniko executor (по умолчанию `/kaniko/executor`);
 - `CODEXCTL_DEV_SLOTS_MAX` — максимальное количество dev‑AI слотов (например, `2`).
 - `CODEXCTL_ALLOWED_USERS` — список GitHub‑логинов, которым разрешено запускать AI‑воркфлоу (например, `user1,user2`), добавляется как Repository Variable.
 - `CODEXCTL_GH_USERNAME` — GitHub‑логин бота, добавляется как Repository Variable.
@@ -365,7 +320,7 @@ mkdir -p ~/codex/envs ~/codex/data
 - `services.yaml` (hook’и и apply);
 - GitHub Actions (`ai_staging_deploy.yml`, `ai_*` воркфлоу).
 
-## 6. Первый деплой стейджинга
+## 5. Первый деплой стейджинга
 
 После настройки runner и секретов:
 
@@ -373,9 +328,9 @@ mkdir -p ~/codex/envs ~/codex/data
 2. В GitHub во вкладке Actions появится workflow
    **“AI Staging deploy 🚀”** (`.github/workflows/ai_staging_deploy.yml`).
 3. При следующем push в `main`:
-   - соберутся и отзеркалятся необходимые образы (`CODEXCTL_ENV=ai-staging`, `CODEXCTL_MIRROR_IMAGES=1`, `CODEXCTL_BUILD_IMAGES=1`,
-     далее `codexctl ci images`);
-   - исходники будут синхронизированы в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src` и примонтированы в ai-staging‑подах;
+   - Kaniko соберёт и отзеркалит образы в кластерный registry (`CODEXCTL_ENV=ai-staging`, `CODEXCTL_MIRROR_IMAGES=true`,
+     `CODEXCTL_BUILD_IMAGES=true`, далее `codexctl ci images`);
+   - исходники будут синхронизированы в `${CODEXCTL_CODE_ROOT_BASE}/ai-staging/src` внутри PVC и примонтированы в ai-staging‑подах;
    - `codexctl ci apply` применит инфраструктуру и сервисы (`CODEXCTL_ENV=ai-staging`, `CODEXCTL_PREFLIGHT=true`, `CODEXCTL_WAIT=true`);
    - в кластере появится неймспейс `project-example-ai-staging`.
 
@@ -396,7 +351,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 
 и открыть `http://localhost:8080`.
 
-## 7. Флоу планирования задач с агентом
+## 6. Флоу планирования задач с агентом
 
 1. Создайте Issue в репозитории и опишите задачу/подпроект.
 2. Повесьте на Issue метку `[ai-plan]`.
@@ -413,7 +368,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 - workflow `ai_plan_review.yml` найдёт корневой планирующий Issue
   и запустит агент `plan_review` (короткий или полный режим в зависимости от пересоздания окружения).
 
-## 8. Флоу разработки с агентом
+## 7. Флоу разработки с агентом
 
 1. Для конкретной задачи (Issue) повесьте метку `[ai-dev]`.
 2. Workflow `ai_dev_issue.yml`:
@@ -431,7 +386,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 - дополнительно поправить код вручную;
 - дать агенту новые инструкции и перезапустить `[ai-dev]`.
 
-## 9. Флоу восстановления стейджинга
+## 8. Флоу восстановления стейджинга
 
 1. Создайте Issue с описанием проблемы стейджинга.
 2. Повесьте метку `[ai-repair]`.
@@ -442,7 +397,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
    - запустит агента `prompt run --kind ai-repair_issue` (язык через `CODEXCTL_LANG=ru`).
 4. Для PR с правками ai-staging‑ремонта ревью запускается через `ai_repair_pr_review.yml` (использует outputs `codexctl_new_env` и `codexctl_env_ready` для выбора continuation/resume).
 
-## 10. Флоу review/fix для PR
+## 9. Флоу review/fix для PR
 
 Для уже открытого PR:
 
@@ -455,7 +410,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
    - команда `codexctl pr review-apply` перенесёт изменения в PR‑ветку
      (commit + push) и добавит комментарий.
 
-## 11. Что дальше
+## 10. Что дальше
 
 - Обзор архитектуры — `docs/architecture_project.md`.
 - Описание моделей БД — `docs/models.md`.
@@ -469,7 +424,7 @@ microk8s kubectl port-forward -n project-example-ai-staging svc/web-frontend 808
 Kubernetes‑манифесты и документацию под свои сервисы и домены
 и получить готовый skeleton для облачной разработки с Codex‑агентом.
 
-## 12. Безопасность
+## 11. Безопасность
 
 ### Базовая настройка брандмауэра
 

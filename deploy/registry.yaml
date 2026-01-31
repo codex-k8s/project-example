@@ -1,0 +1,75 @@
+{{- $size := "50Gi" -}}
+{{- $class := "" -}}
+{{- if .Storage -}}
+  {{- if .Storage.Registry -}}
+    {{- if .Storage.Registry.Size -}}
+      {{- $size = .Storage.Registry.Size -}}
+    {{- end -}}
+    {{- if .Storage.Registry.StorageClass -}}
+      {{- $class = .Storage.Registry.StorageClass -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-registry" .Project }}
+  namespace: {{ .Namespace }}
+spec:
+  accessModes:
+{{- if and .Storage .Storage.Registry .Storage.Registry.AccessModes }}
+{{- range .Storage.Registry.AccessModes }}
+    - {{ . }}
+{{- end }}
+{{- else }}
+    - ReadWriteOnce
+{{- end }}
+  resources:
+    requests:
+      storage: {{ $size }}
+{{- if $class }}
+  storageClassName: {{ $class }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: registry
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: registry
+  template:
+    metadata:
+      labels:
+        app: registry
+    spec:
+      containers:
+        - name: registry
+          image: registry:2
+          ports:
+            - containerPort: 5000
+          env:
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: /var/lib/registry
+          volumeMounts:
+            - name: registry-data
+              mountPath: /var/lib/registry
+      volumes:
+        - name: registry-data
+          persistentVolumeClaim:
+            claimName: {{ printf "%s-registry" .Project }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: registry
+  ports:
+    - port: 5000
+      targetPort: 5000

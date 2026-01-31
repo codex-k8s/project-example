@@ -47,10 +47,11 @@
 - `configmap.yaml` — общие переменные окружения (HOST, STAGE),
   конфиг PostgreSQL и Redis;
 - `secret.yaml` — секреты БД, Redis, Django, OpenAI, Context7, GitHub;
-- `postgres.service.yaml` — Deployment/Service для PostgreSQL
-  с хранением данных на hostPath (`.data/.../postgres`);
-- `redis.service.yaml` — Deployment/Service для Redis
-  (`.data/.../redis`);
+- `pvc-workspace.yaml` — PVC для исходников;
+- `pvc-data.yaml` — PVC для PostgreSQL/Redis;
+- `registry.yaml` — deployment/service для внутреннего registry;
+- `postgres.service.yaml` — Deployment/Service для PostgreSQL (данные в PVC);
+- `redis.service.yaml` — Deployment/Service для Redis (данные в PVC);
 - `jaeger.yaml` — in‑memory Jaeger (ConfigMap + Deployment + Service);
 - `dns.configmap.yaml` — конфигурация CoreDNS для кластера;
 - `cluster-issuer.yaml` — ClusterIssuer для Let’s Encrypt;

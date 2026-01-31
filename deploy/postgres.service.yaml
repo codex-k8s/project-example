@@ -1,5 +1,5 @@
-{{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
-{{- $envDir := ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) -}}
+{{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
 {{- $imagePullPolicy := ternary (eq .Env "ai-staging") "Always" "IfNotPresent" -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,7 @@ spec:
             value: "1"
       containers:
         - name: postgres
-          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/postgres:{{ index .Versions "postgres-image" }}
+          image: {{ $registryHost }}/library/postgres:{{ index .Versions "postgres-image" }}
           imagePullPolicy: {{ $imagePullPolicy }}
           envFrom:
             - secretRef:
@@ -44,11 +44,11 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql
+              subPath: postgres
       volumes:
         - name: postgres-data
-          hostPath:
-            path: {{ printf "%s/postgres" $envDir }}
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: {{ $dataPVC }}
 ---
 apiVersion: v1
 kind: Service
@@ -61,4 +61,3 @@ spec:
   ports:
     - port: 5432
       targetPort: 5432
-

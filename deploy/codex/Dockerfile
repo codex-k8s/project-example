@@ -20,7 +20,7 @@ RUN apt-get update -y \
       postgresql-client redis-tools \
       netcat-openbsd unzip zip make build-essential \
       gettext-base \
-      software-properties-common ripgrep rsync docker.io \
+      software-properties-common ripgrep \
   && rm -rf /var/lib/apt/lists/*
 
 RUN install -m 0755 -d /etc/apt/keyrings \

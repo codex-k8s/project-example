@@ -1,0 +1,32 @@
+{{- $size := "20Gi" -}}
+{{- $class := "" -}}
+{{- if .Storage -}}
+  {{- if .Storage.Data -}}
+    {{- if .Storage.Data.Size -}}
+      {{- $size = .Storage.Data.Size -}}
+    {{- end -}}
+    {{- if .Storage.Data.StorageClass -}}
+      {{- $class = .Storage.Data.StorageClass -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-data" .Project }}
+  namespace: {{ .Namespace }}
+spec:
+  accessModes:
+{{- if and .Storage .Storage.Data .Storage.Data.AccessModes }}
+{{- range .Storage.Data.AccessModes }}
+    - {{ . }}
+{{- end }}
+{{- else }}
+    - ReadWriteOnce
+{{- end }}
+  resources:
+    requests:
+      storage: {{ $size }}
+{{- if $class }}
+  storageClassName: {{ $class }}
+{{- end }}

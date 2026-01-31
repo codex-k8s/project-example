@@ -1,7 +1,13 @@
-# {{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" "" -}}
-# {{- $slotCodeRoot := default $codeRootBase (printf "%s/slots" .ProjectRoot) -}}
-# {{- $stagingCodeRoot := default (ternary (ne $codeRootBase "") (printf "%s/ai-staging/src" $codeRootBase) "") .ProjectRoot -}}
-# {{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
+# {{- $workspaceMount := envOr "CODEXCTL_WORKSPACE_MOUNT" "/workspace" -}}
+# {{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" (printf "%s/codex/envs" $workspaceMount) -}}
+# {{- $codeRootRel := trimPrefix $codeRootBase (printf "%s/" $workspaceMount) -}}
+# {{- $devCodeRoot := printf "%s/dev/src" $codeRootRel -}}
+# {{- $aiStagingCodeRoot := printf "%s/ai-staging/src" $codeRootRel -}}
+# {{- $slotCodeRoot := $codeRootRel -}}
+# {{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
+# {{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
+# {{- $registryPVC := envOr "CODEXCTL_REGISTRY_PVC" (printf "%s-registry" .Project) -}}
+# {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
 project: project-example
 
 codex:
@@ -41,20 +47,27 @@ namespace:
 
 maxSlots: 10
 
-registry: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}'
+registry: '{{ $registryHost }}'
+
+storage:
+  workspace:
+    size: "50Gi"
+    accessModes: ["ReadWriteMany"]
+    storageClass: '{{ envOr "CODEXCTL_STORAGE_CLASS_WORKSPACE" "" }}'
+  data:
+    size: "20Gi"
+    accessModes: ["ReadWriteOnce"]
+    storageClass: '{{ envOr "CODEXCTL_STORAGE_CLASS_DATA" "" }}'
+  registry:
+    size: "20Gi"
+    accessModes: ["ReadWriteOnce"]
+    storageClass: '{{ envOr "CODEXCTL_STORAGE_CLASS_REGISTRY" "" }}'
 
 baseDomain:
-  dev: '{{ envOr "BASE_DOMAIN_DEV" "dev.example-domain.ru" }}'
-  ai-staging: '{{ envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
-  ai: '{{ envOr "BASE_DOMAIN_AI" (envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru") }}'
-  ai-repair: '{{ envOr "BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
-
-dataPaths:
-  root: '{{ $dataRoot }}'
-  envDir: '{{ ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) }}'
-  dirs:
-    - postgres
-    - redis
+  dev: '{{ envOr "CODEXCTL_BASE_DOMAIN_DEV" "dev.example-domain.ru" }}'
+  ai-staging: '{{ envOr "CODEXCTL_BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
+  ai: '{{ envOr "CODEXCTL_BASE_DOMAIN_AI" (envOr "CODEXCTL_BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru") }}'
+  ai-repair: '{{ envOr "CODEXCTL_BASE_DOMAIN_AI_STAGING" "ai-staging.example-domain.ru" }}'
 
 state:
   backend: configmap
@@ -84,23 +97,23 @@ images:
   busybox:
     type: external
     from: 'docker.io/library/busybox:{{ index .Versions "busybox" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}'
+    local: '{{ $registryHost }}/library/busybox:{{ index .Versions "busybox" }}'
   postgres:
     type: external
     from: 'docker.io/library/postgres:{{ index .Versions "postgres-image" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/postgres:{{ index .Versions "postgres-image" }}'
+    local: '{{ $registryHost }}/library/postgres:{{ index .Versions "postgres-image" }}'
   redis:
     type: external
     from: 'docker.io/library/redis:{{ index .Versions "redis-image" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/redis:{{ index .Versions "redis-image" }}'
+    local: '{{ $registryHost }}/library/redis:{{ index .Versions "redis-image" }}'
   jaeger:
     type: external
     from: 'docker.io/jaegertracing/jaeger:{{ index .Versions "jaeger" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/jaeger:{{ index .Versions "jaeger" }}'
+    local: '{{ $registryHost }}/library/jaeger:{{ index .Versions "jaeger" }}'
 
   django-backend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
+    repository: '{{ $registryHost }}/project-example/django-backend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
     dockerfile: 'services/django_backend/Dockerfile'
     context: 'services/django_backend'
@@ -110,7 +123,7 @@ images:
 
   chat-backend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
+    repository: '{{ $registryHost }}/project-example/chat-backend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
     dockerfile: 'services/chat_backend/Dockerfile'
     context: 'services/chat_backend'
@@ -120,7 +133,7 @@ images:
 
   web-frontend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
+    repository: '{{ $registryHost }}/project-example/web-frontend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
     dockerfile: 'services/web_frontend/Dockerfile'
     context: 'services/web_frontend'
@@ -130,7 +143,7 @@ images:
 
   codex:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
+    repository: '{{ $registryHost }}/project-example/codex'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "codex") }}'
     dockerfile: 'deploy/codex/Dockerfile'
     context: '.'
@@ -145,29 +158,15 @@ environments:
   dev:
     kubeconfig: "/home/user/.kube/project-example-dev"
     imagePullPolicy: IfNotPresent
-    localRegistry:
-      enabled: true
-      name: "project-example-registry"
-      port: 32000
   ai-staging:
     kubeconfig: "/home/runner/.kube/microk8s.config"
     imagePullPolicy: Always
-    localRegistry:
-      enabled: true
-      name: "project-example-registry"
-      port: 32000
   ai:
     from: "ai-staging"
     imagePullPolicy: IfNotPresent
   ai-repair:
     from: "ai-staging"
     imagePullPolicy: IfNotPresent
-
-hooks:
-  beforeAll:
-    - name: ensure-local-data-dirs
-      when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
-      use: codex.ensure-data-dirs
 
 infrastructure:
   - name: namespace-and-config
@@ -176,6 +175,21 @@ infrastructure:
       - path: deploy/namespace.yaml
       - path: deploy/configmap.yaml
       - path: deploy/secret.yaml
+
+  - name: workspace-pvc
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
+    manifests:
+      - path: deploy/pvc-workspace.yaml
+
+  - name: data-pvc
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
+    manifests:
+      - path: deploy/pvc-data.yaml
+
+  - name: registry
+    when: '{{ eq .Env "ai-staging" }}'
+    manifests:
+      - path: deploy/registry.yaml
 
   - name: cluster-dns
     when: '{{ eq .Env "ai-staging" }}'
@@ -258,75 +272,84 @@ services:
     manifests:
       - path: services/django_backend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
+      repository: '{{ $registryHost }}/project-example/django-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
-        hostMounts:
-          - name: django-src
-            hostPath: "{{ .ProjectRoot }}/services/django_backend"
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/backend"
+            subPath: '{{ printf "%s/services/django_backend" $devCodeRoot }}'
       ai-staging:
-        hostMounts:
-          - name: django-src
-            hostPath: '{{ printf "%s/services/django_backend" $stagingCodeRoot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/backend"
+            subPath: '{{ printf "%s/services/django_backend" $aiStagingCodeRoot }}'
       ai:
-        hostMounts:
-          - name: django-src
-            hostPath: '{{ printf "%s/%d/src/services/django_backend" $slotCodeRoot .Slot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/backend"
+            subPath: '{{ printf "%s/%d/src/services/django_backend" $slotCodeRoot .Slot }}'
         dropKinds: ["Ingress"]
 
   - name: chat-backend
     manifests:
       - path: services/chat_backend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
+      repository: '{{ $registryHost }}/project-example/chat-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
-        hostMounts:
-          - name: go-src
-            hostPath: "{{ .ProjectRoot }}/services/chat_backend"
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/services/chat_backend" $devCodeRoot }}'
       ai-staging:
-        hostMounts:
-          - name: go-src
-            hostPath: '{{ printf "%s/services/chat_backend" $stagingCodeRoot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/services/chat_backend" $aiStagingCodeRoot }}'
       ai:
-        hostMounts:
-          - name: go-src
-            hostPath: '{{ printf "%s/%d/src/services/chat_backend" $slotCodeRoot .Slot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/%d/src/services/chat_backend" $slotCodeRoot .Slot }}'
         dropKinds: ["Ingress"]
 
   - name: web-frontend
     manifests:
       - path: services/web_frontend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
+      repository: '{{ $registryHost }}/project-example/web-frontend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
-        hostMounts:
-          - name: web-src
-            hostPath: "{{ .ProjectRoot }}/services/web_frontend"
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/services/web_frontend" $devCodeRoot }}'
       ai-staging:
-        hostMounts:
-          - name: web-src
-            hostPath: '{{ printf "%s/services/web_frontend" $stagingCodeRoot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/services/web_frontend" $aiStagingCodeRoot }}'
       ai:
-        hostMounts:
-          - name: web-src
-            hostPath: '{{ printf "%s/%d/src/services/web_frontend" $slotCodeRoot .Slot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/app"
+            subPath: '{{ printf "%s/%d/src/services/web_frontend" $slotCodeRoot .Slot }}'
         dropKinds: ["Ingress"]
 
   - name: codex
@@ -335,34 +358,25 @@ services:
       - path: deploy/codex/codex-deploy.yaml
       - path: deploy/codex/ingress-dev.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
+      repository: '{{ $registryHost }}/project-example/codex'
       tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "codex") }}'
     when: '{{ or (eq .Env "ai") (eq .Env "ai-repair") }}'
     overlays:
       ai:
-        hostMounts:
-          - name: code-src
-            hostPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/workspace"
-          - name: docker-sock
-            hostPath: /var/run/docker.sock
-            hostPathType: Socket
-            mountPath: /var/run/docker.sock
+            subPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
       ai-repair:
-        hostMounts:
-          - name: code-src
-            hostPath: '{{ $stagingCodeRoot }}'
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
             mountPath: "/workspace"
-          - name: docker-sock
-            hostPath: /var/run/docker.sock
-            hostPathType: Socket
-            mountPath: /var/run/docker.sock
+            subPath: '{{ $aiStagingCodeRoot }}'
         dropKinds: ["Ingress"]
     hooks:
       afterApply:
-        - name: check-dev-host-ports
-          when: '{{ eq .Env "ai" }}'
-          use: codex.check-dev-host-ports
         - name: reuse-dev-tls-secret
           when: '{{ eq .Env "ai" }}'
           use: codex.reuse-dev-tls-secret

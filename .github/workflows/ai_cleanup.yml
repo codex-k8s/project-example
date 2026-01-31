@@ -7,7 +7,6 @@ on:
     types: [closed]
 
 env:
-  CODEXCTL_DATA_ROOT:     ${{ vars.CODEXCTL_DATA_ROOT }}
   CODEXCTL_WORKSPACE_UID: ${{ vars.CODEXCTL_WORKSPACE_UID }}
   CODEXCTL_WORKSPACE_GID: ${{ vars.CODEXCTL_WORKSPACE_GID }}
   CODEXCTL_PR_NUMBER:     ${{ github.event.pull_request.number || '' }}

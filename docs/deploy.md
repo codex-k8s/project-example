@@ -19,7 +19,7 @@
 - `ai` — dev‑AI слоты (`project-example-dev-<slot>`), в которых работает Codex.
 
 Параметры подключения к кластеру задаются в блоке `environments.*`
-и/или через переменную `KUBECONFIG`.
+и/или через переменную `CODEXCTL_KUBECONFIG`.
 
 ## Базовой цикл деплоя (локально)
 
@@ -28,10 +28,10 @@
 ```bash
 ENV=ai-staging
 
-REGISTRY_HOST=localhost:5000 ./codexctl images mirror --env "$ENV"
-REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
+CODEXCTL_REGISTRY_HOST="registry.project-example-ai-staging.svc.cluster.local:5000" codexctl images mirror --env "$ENV"
+CODEXCTL_REGISTRY_HOST="registry.project-example-ai-staging.svc.cluster.local:5000" codexctl images build  --env "$ENV"
 
-./codexctl apply --env "$ENV" --wait --preflight
+codexctl apply --env "$ENV" --wait --preflight
 ```
 
 Команда `apply`:
@@ -50,8 +50,8 @@ REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
 - `data-services` — PostgreSQL и Redis (`deploy/postgres.service.yaml`, `deploy/redis.service.yaml`);
 - `observability` — Jaeger (`deploy/jaeger.yaml`).
 
-Хранение данных выполняется в `hostPath` в рамках `CODEXCTL_DATA_ROOT`
-(см. env‑переменные и hook `ensure-local-data-dirs`).
+Хранение данных выполняется в PVC, параметры задаются в `services.yaml`
+через блок `storage` и env‑переменные `CODEXCTL_STORAGE_CLASS_*`.
 
 ## Сервисы
 
@@ -66,9 +66,9 @@ REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
 - `codex` — Pod агента Codex (`deploy/codex/codex-deploy.yaml`, `deploy/codex/ingress-dev.yaml`),
   разворачивается только в `env=ai`.
 
-Для `dev`/`ai` окружений используются `hostMounts`, которые монтируют исходники
-в контейнеры (см. `services.*.overlays`). Это позволяет Codex‑агенту и разработчикам
-работать с живыми исходниками.
+Для `dev`/`ai` окружений используются `pvcMounts`, которые монтируют исходники
+из workspace PVC в контейнеры (см. `services.*.overlays`). Это позволяет Codex‑агенту
+и разработчикам работать с живыми исходниками.
 
 ## GitHub Actions
 
@@ -80,7 +80,7 @@ REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
 - шаги:
   - checkout репозитория и `codexctl`;
   - сборка `codexctl`;
-  - `codexctl ci images --env ai-staging --mirror --build` в локальный registry `localhost:5000`;
+  - `codexctl ci images --env ai-staging --mirror --build` через Kaniko в кластерный registry;
   - `codexctl ci apply --env ai-staging --wait --preflight`.
 
 ### Dev‑AI слоты и агенты

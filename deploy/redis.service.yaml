@@ -1,5 +1,5 @@
-{{- $dataRoot := default (envOr "CODEXCTL_DATA_ROOT" "") (printf "%s/.data" .ProjectRoot) -}}
-{{- $envDir := ternary (eq .Env "ai") (printf "%s/slots/%d" $dataRoot .Slot) (printf "%s/%s" $dataRoot .Env) -}}
+{{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
 {{- $imagePullPolicy := ternary (eq .Env "ai-staging") "Always" "IfNotPresent" -}}
 apiVersion: apps/v1
 kind: Deployment
@@ -27,7 +27,7 @@ spec:
             value: "1"
       containers:
         - name: redis
-          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/redis:{{ index .Versions "redis-image" }}
+          image: {{ $registryHost }}/library/redis:{{ index .Versions "redis-image" }}
           imagePullPolicy: {{ $imagePullPolicy }}
           command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
           envFrom:
@@ -42,11 +42,11 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /data
+              subPath: redis
       volumes:
         - name: redis-data
-          hostPath:
-            path: {{ printf "%s/redis" $envDir }}
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: {{ $dataPVC }}
 ---
 apiVersion: v1
 kind: Service
@@ -59,4 +59,3 @@ spec:
   ports:
     - port: 6379
       targetPort: 6379
-

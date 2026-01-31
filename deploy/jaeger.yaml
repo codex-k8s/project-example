@@ -1,3 +1,4 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s-ai-staging.svc.cluster.local:5000" .Project) -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -57,7 +58,7 @@ spec:
     spec:
       containers:
         - name: jaeger
-          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/jaeger:{{ index .Versions "jaeger" }}
+          image: {{ $registryHost }}/library/jaeger:{{ index .Versions "jaeger" }}
           args:
             - "--config=/etc/jaeger/config.yaml"
           ports:
@@ -96,4 +97,3 @@ spec:
     - name: otlp-http
       port: 4318
       targetPort: 4318
-
