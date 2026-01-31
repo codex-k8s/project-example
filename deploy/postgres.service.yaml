@@ -27,7 +27,7 @@ spec:
             value: "1"
       containers:
         - name: postgres
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/postgres:{{ index .Versions "postgres-image" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/postgres:{{ index .Versions "postgres-image" }}
           imagePullPolicy: {{ $imagePullPolicy }}
           envFrom:
             - secretRef:

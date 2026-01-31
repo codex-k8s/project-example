@@ -57,7 +57,7 @@ spec:
     spec:
       containers:
         - name: jaeger
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/jaeger:{{ index .Versions "jaeger" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/jaeger:{{ index .Versions "jaeger" }}
           args:
             - "--config=/etc/jaeger/config.yaml"
           ports:

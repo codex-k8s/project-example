@@ -40,7 +40,7 @@ namespace:
 
 maxSlots: 0
 
-registry: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}'
+registry: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}'
 
 baseDomain:
   dev: '{{ envOr "BASE_DOMAIN_DEV" "dev.example-domain.ru" }}'
@@ -83,23 +83,23 @@ images:
   busybox:
     type: external
     from: 'docker.io/library/busybox:{{ index .Versions "busybox" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}'
+    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}'
   postgres:
     type: external
     from: 'docker.io/library/postgres:{{ index .Versions "postgres-image" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/postgres:{{ index .Versions "postgres-image" }}'
+    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/postgres:{{ index .Versions "postgres-image" }}'
   redis:
     type: external
     from: 'docker.io/library/redis:{{ index .Versions "redis-image" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/redis:{{ index .Versions "redis-image" }}'
+    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/redis:{{ index .Versions "redis-image" }}'
   jaeger:
     type: external
     from: 'docker.io/jaegertracing/jaeger:{{ index .Versions "jaeger" }}'
-    local: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/jaeger:{{ index .Versions "jaeger" }}'
+    local: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/jaeger:{{ index .Versions "jaeger" }}'
 
   django-backend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend'
+    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "django-backend") }}'
     dockerfile: 'services/django_backend/Dockerfile'
     context: 'services/django_backend'
@@ -109,7 +109,7 @@ images:
 
   chat-backend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/chat-backend'
+    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "chat-backend") }}'
     dockerfile: 'services/chat_backend/Dockerfile'
     context: 'services/chat_backend'
@@ -119,7 +119,7 @@ images:
 
   web-frontend:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/web-frontend'
+    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "web-frontend") }}'
     dockerfile: 'services/web_frontend/Dockerfile'
     context: 'services/web_frontend'
@@ -129,7 +129,7 @@ images:
 
   codex:
     type: build
-    repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/codex'
+    repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
     tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "codex") }}'
     dockerfile: 'deploy/codex/Dockerfile'
     context: '.'
@@ -257,7 +257,7 @@ services:
     manifests:
       - path: services/django_backend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend'
+      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "django-backend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
@@ -282,7 +282,7 @@ services:
     manifests:
       - path: services/chat_backend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/chat-backend'
+      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "chat-backend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
@@ -307,7 +307,7 @@ services:
     manifests:
       - path: services/web_frontend/deploy.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/web-frontend'
+      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend'
       tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "staging" .Env) (index .Versions "web-frontend") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "staging") (eq .Env "ai") }}'
     overlays:
@@ -334,7 +334,7 @@ services:
       - path: deploy/codex/codex-deploy.yaml
       - path: deploy/codex/ingress-dev.yaml
     image:
-      repository: '{{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/codex'
+      repository: '{{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/codex'
       tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "staging" .Env) (index .Versions "codex") }}'
     when: '{{ or (eq .Env "ai") (eq .Env "ai-repair") }}'
     overlays:

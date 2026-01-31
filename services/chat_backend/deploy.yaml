@@ -40,7 +40,7 @@ spec:
             value: "1"
       initContainers:
         - name: wait-for-postgres
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}
           command:
             - sh
             - -c
@@ -50,7 +50,7 @@ spec:
                 sleep 2;
               done
         - name: wait-for-redis
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}
           command:
             - sh
             - -c
@@ -61,7 +61,7 @@ spec:
               done
       containers:
         - name: chat-backend
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/chat-backend:{{ $tagEnv }}-{{ index .Versions "chat-backend" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/chat-backend:{{ $tagEnv }}-{{ index .Versions "chat-backend" }}
           ports:
             - containerPort: 8080
               name: http

@@ -29,7 +29,7 @@ spec:
       {{- end }}
       containers:
         - name: web-frontend
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/web-frontend:{{ $tagEnv }}-{{ index .Versions "web-frontend" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/web-frontend:{{ $tagEnv }}-{{ index .Versions "web-frontend" }}
           command:
             - sh
             - -c

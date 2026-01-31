@@ -44,7 +44,7 @@ spec:
             value: "1"
       initContainers:
         - name: wait-for-postgres
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}
           command:
             - sh
             - -c
@@ -54,7 +54,7 @@ spec:
                 sleep 2;
               done
         - name: wait-for-redis
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/busybox:{{ index .Versions "busybox" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/busybox:{{ index .Versions "busybox" }}
           command:
             - sh
             - -c
@@ -64,7 +64,7 @@ spec:
                 sleep 2;
               done
         - name: django-backend-migrate
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
           command:
             - sh
             - -c
@@ -90,7 +90,7 @@ spec:
                 name: django-backend-config
       containers:
         - name: django-backend
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/project-example/django-backend:{{ $tagEnv }}-{{ index .Versions "django-backend" }}
           ports:
             - containerPort: 8000
           {{- if or (eq .Env "ai") (eq .Env "staging") }}

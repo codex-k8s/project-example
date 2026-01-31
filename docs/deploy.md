@@ -28,8 +28,8 @@
 ```bash
 ENV=staging
 
-REGISTRY_HOST=localhost:32000 ./codexctl images mirror --env "$ENV"
-REGISTRY_HOST=localhost:32000 ./codexctl images build  --env "$ENV"
+REGISTRY_HOST=localhost:5000 ./codexctl images mirror --env "$ENV"
+REGISTRY_HOST=localhost:5000 ./codexctl images build  --env "$ENV"
 
 ./codexctl apply --env "$ENV" --wait --preflight
 ```
@@ -80,7 +80,7 @@ REGISTRY_HOST=localhost:32000 ./codexctl images build  --env "$ENV"
 - шаги:
   - checkout репозитория и `codexctl`;
   - сборка `codexctl`;
-  - `codexctl ci images --env staging --mirror --build` в локальный registry `localhost:32000`;
+  - `codexctl ci images --env staging --mirror --build` в локальный registry `localhost:5000`;
   - `codexctl ci apply --env staging --wait --preflight`.
 
 ### Dev‑AI слоты и агенты

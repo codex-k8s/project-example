@@ -44,7 +44,7 @@ jobs:
         env:
           CODEXCTL_MIRROR_IMAGES: true
           CODEXCTL_BUILD_IMAGES:  true
-          REGISTRY_HOST: localhost:32000
+          REGISTRY_HOST: localhost:5000
         run: |
           set -euo pipefail
           codexctl ci images

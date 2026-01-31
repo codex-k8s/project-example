@@ -92,14 +92,14 @@ sudo usermod -aG docker "$USER"
 sudo usermod -aG docker runner
 ```
 
-Добавляем `localhost:32000` (встроенный registry microk8s) в insecure‑registries:
+Добавляем `localhost:5000` (встроенный registry microk8s) в insecure‑registries:
 
 ```bash
 sudo mkdir -p /etc/docker
 cat <<EOF | sudo tee /etc/docker/daemon.json
 {
   "insecure-registries": [
-    "localhost:32000"
+    "localhost:5000"
   ]
 }
 EOF
@@ -313,7 +313,7 @@ mkdir -p ~/codex/envs ~/codex/data
 
 По умолчанию в `services.yaml`:
 
-- `registry: localhost:32000`;
+- `registry: localhost:5000`;
 - `environments.staging.kubeconfig: "/home/runner/.kube/microk8s.config"`;
 - домены:
   - `baseDomain.dev` по умолчанию `dev.example-domain.ru`;

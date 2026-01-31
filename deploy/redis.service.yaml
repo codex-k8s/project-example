@@ -27,7 +27,7 @@ spec:
             value: "1"
       containers:
         - name: redis
-          image: {{ envOr "REGISTRY_HOST" "localhost:32000" }}/library/redis:{{ index .Versions "redis-image" }}
+          image: {{ envOr "REGISTRY_HOST" "localhost:5000" }}/library/redis:{{ index .Versions "redis-image" }}
           imagePullPolicy: {{ $imagePullPolicy }}
           command: ["redis-server", "--requirepass", "$(REDIS_PASSWORD)"]
           envFrom:
