@@ -238,6 +238,15 @@ source ~/.bashrc
 Рекомендуемый путь — GitHub Actions Runner Controller (ARC) в кластере.
 В этом проекте поддерживается только in‑cluster запуск: runner’ы работают
 исключительно в pod’ах Kubernetes.
+
+Для ARC нужен Helm. Если кластер разворачивали через `bootstrap/`, Helm уже установлен.
+Иначе установите вручную:
+
+```bash
+curl -fsSL -o /tmp/get-helm-3 https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 /tmp/get-helm-3
+sudo /tmp/get-helm-3
+```
 Схема установки (высокоуровнево):
 
 - установить ARC в кластер (Helm‑чарт);
