@@ -18,7 +18,7 @@ while read -r ns; do
   REGISTRY_MIRRORS_YAML+=$'  "'"${host}"$'":\n'
   REGISTRY_MIRRORS_YAML+=$'    endpoint:\n'
   REGISTRY_MIRRORS_YAML+=$'      - "http://'"${host}"$'"\n'
-done < <(env_namespaces)
+done < <(registry_namespaces)
 
 export REGISTRY_MIRRORS_YAML
 

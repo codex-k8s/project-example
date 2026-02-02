@@ -27,7 +27,7 @@ awk -v b="${BEGIN_MARK}" -v e="${END_MARK}" '
     ip="$(kubectl -n "${ns}" get svc registry -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)"
     [[ -n "${ip}" && "${ip}" != "None" ]] || continue
     echo "${ip} registry.${ns}.svc.cluster.local"
-  done < <(env_namespaces)
+  done < <(registry_namespaces)
   echo "${END_MARK}"
 } >> "${tmp}"
 

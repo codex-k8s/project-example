@@ -29,7 +29,7 @@ log "Create namespaces (ingress + platform namespaces with platform pool annotat
 export CALICO_IPV4POOLS_JSON='["platform"]'
 apply_tpl "${ROOT_DIR}" "namespace-ingress.yaml.tpl"
 
-platform_namespaces=(cert-manager longhorn-system velero)
+platform_namespaces=(cert-manager longhorn-system velero actions-runner-system)
 if [[ "${ENABLE_METALLB}" == "true" ]]; then
   platform_namespaces+=(metallb-system)
 fi

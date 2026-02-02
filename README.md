@@ -247,6 +247,58 @@ curl -fsSL -o /tmp/get-helm-3 https://raw.githubusercontent.com/helm/helm/main/s
 chmod 700 /tmp/get-helm-3
 sudo /tmp/get-helm-3
 ```
+
+Образы runner’ов в этой конфигурации хранятся во внутреннем registry
+в namespace `actions-runner-system`:
+`registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest`.
+Этот namespace и registry создаются bootstrap‑скриптами.
+
+Перед установкой ARC соберите и запушьте образ runner’а в этот registry через Kaniko:
+
+```bash
+/kaniko/executor \
+  --context "$(pwd)" \
+  --dockerfile deploy/runner/Dockerfile \
+  --destination registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest \
+  --insecure --skip-tls-verify --skip-tls-verify-pull
+```
+
+Важно: это первичная сборка runner‑образа, поэтому `kaniko` должен быть
+доступен **вне** runner‑пода (его ещё нет). Варианты:
+- поставить kaniko executor на сервер и использовать команду выше;
+- временно собрать образ через Docker на сервере;
+- запустить одноразовый kaniko‑pod в кластере.
+
+Пример одноразового kaniko‑пода (публичный репозиторий):
+
+```bash
+kubectl -n actions-runner-system run kaniko-build --rm -it --restart=Never \
+  --image=gcr.io/kaniko-project/executor:debug \
+  -- /kaniko/executor \
+  --context=git://github.com/codex-k8s/project-example.git#refs/heads/main \
+  --dockerfile=deploy/runner/Dockerfile \
+  --destination=registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest \
+  --insecure --skip-tls-verify --skip-tls-verify-pull
+```
+
+Для приватного репозитория (HTTPS + токен):
+
+```bash
+kubectl -n actions-runner-system create secret generic kaniko-git \
+  --from-literal=GIT_TOKEN="YOUR_TOKEN"
+
+kubectl -n actions-runner-system run kaniko-build --rm -it --restart=Never \
+  --image=gcr.io/kaniko-project/executor:debug \
+  --env=GIT_TOKEN=$(kubectl -n actions-runner-system get secret kaniko-git -o jsonpath='{.data.GIT_TOKEN}' | base64 -d) \
+  -- /kaniko/executor \
+  --context=git://github.com/codex-k8s/project-example.git#refs/heads/main \
+  --dockerfile=deploy/runner/Dockerfile \
+  --destination=registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest \
+  --insecure --skip-tls-verify --skip-tls-verify-pull \
+  --build-arg=GIT_TOKEN
+```
+
+Либо используйте заранее смонтированный том с кодом.
 Схема установки (высокоуровнево):
 
 - установить ARC в кластер (Helm‑чарт);
@@ -273,7 +325,7 @@ runs-on: [self-hosted, ai-staging] # deploy/repair/cleanup ai-staging
 
 ```yaml
 # values-ai.yaml
-githubConfigUrl: https://github.com/ORG/REPO
+githubConfigUrl: https://github.com/codex-k8s/project-example
 githubConfigSecret: gha-runner-secret
 runnerScaleSetName: ai
 runnerLabels: ["ai"]
@@ -282,12 +334,12 @@ template:
     serviceAccountName: gha-runner-ai
     containers:
       - name: runner
-        image: ghcr.io/ORG/codex-runner:latest
+        image: registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest
 ```
 
 ```yaml
 # values-ai-staging.yaml
-githubConfigUrl: https://github.com/ORG/REPO
+githubConfigUrl: https://github.com/codex-k8s/project-example
 githubConfigSecret: gha-runner-secret
 runnerScaleSetName: ai-staging
 runnerLabels: ["ai-staging"]
@@ -296,7 +348,7 @@ template:
     serviceAccountName: gha-runner-ai-staging
     containers:
       - name: runner
-        image: ghcr.io/ORG/codex-runner:latest
+        image: registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest
 ```
 
 Установка:
@@ -333,12 +385,12 @@ helm upgrade --install gha-runner-ai-staging \
 2. Вариант B (GitHub App, рекомендуется): создайте GitHub App с правами на Actions/Administration,
    установите её в репозиторий и примените `deploy/runner/github-app-secret.yaml`.
 
-Перед применением замените `ORG/REPO` и `ghcr.io/ORG/codex-runner:latest` в `runner-scale-set-*.yaml`
+Перед применением замените `ORG/REPO` в `runner-scale-set-*.yaml`
 на свои значения и, при необходимости, поправьте namespace’ы под ваш проект.
 
 Минимальный чек‑лист:
 
-- `githubConfigUrl` должен указывать на репозиторий (`https://github.com/ORG/REPO`) или организацию;
+- `githubConfigUrl` должен указывать на репозиторий (`https://github.com/codex-k8s/project-example`) или организацию;
 - `githubConfigSecret` в RunnerScaleSet должен совпадать с именем секрета (`gha-runner-secret`);
 - PAT/APP должен иметь права на управление self‑hosted runner’ами в целевом репозитории.
 
@@ -356,8 +408,8 @@ kubectl apply -f deploy/runner/runner-scale-set-ai-staging.yaml
 
 Выбор образа runner’а:
 
-- соберите образ из `deploy/runner/Dockerfile` и запушьте в registry,
-  доступный из `actions-runner-system`;
+- соберите образ из `deploy/runner/Dockerfile` и запушьте в
+  `registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest`;
 - укажите этот образ в `spec.template.spec.containers[0].image` в `runner-scale-set-*.yaml`.
 
 RBAC и удалённые namespace’ы:

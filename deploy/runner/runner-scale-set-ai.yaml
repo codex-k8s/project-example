@@ -4,7 +4,7 @@ metadata:
   name: gha-runner-ai
   namespace: actions-runner-system
 spec:
-  githubConfigUrl: https://github.com/ORG/REPO
+  githubConfigUrl: https://github.com/codex-k8s/project-example
   githubConfigSecret: gha-runner-secret
   minRunners: 0
   maxRunners: 5
@@ -15,5 +15,5 @@ spec:
       serviceAccountName: gha-runner-ai
       containers:
         - name: runner
-          image: ghcr.io/ORG/codex-runner:latest
+          image: registry.actions-runner-system.svc.cluster.local:5000/codex-runner:latest
           imagePullPolicy: IfNotPresent

@@ -40,6 +40,11 @@ env_namespaces() {
   done
 }
 
+registry_namespaces() {
+  env_namespaces
+  echo "actions-runner-system"
+}
+
 project_index() {
   local target="$1"
   local idx=0

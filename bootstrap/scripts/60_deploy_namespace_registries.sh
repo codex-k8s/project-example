@@ -17,6 +17,6 @@ while read -r ns; do
   export REGISTRY_PORT
   export REGISTRY_STORAGECLASS
   apply_tpl "${ROOT_DIR}" "registry-per-namespace.yaml.tpl"
-done < <(env_namespaces)
+done < <(registry_namespaces)
 
 log "Registries deployed"
