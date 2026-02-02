@@ -85,6 +85,11 @@ Dev‑AI‑слоты (`env=ai`) создаются через `codexctl ci ensu
 ├── AGENTS.md                  // правила для Codex‑агента
 ├── README.md                  // краткое описание
 ├── README_RU.md               // полный гайд по установке
+├── bootstrap/                 // скрипты подготовки сервера/кластера
+│   ├── bootstrap.sh
+│   ├── config.env
+│   ├── scripts/
+│   └── templates/
 ├── services.yaml              // конфигурация codexctl
 ├── deploy/                    // инфраструктурные манифесты K8s
 │   ├── namespace.yaml
