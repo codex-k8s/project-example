@@ -21,6 +21,42 @@
 Команды ниже нужны для подготовки кластера и базового runner‑образа/runner‑пода,
 а не для запуска runner на хосте.
 
+Если хотите более «взрослый» кластер на K3s с Calico/Longhorn, бэкапами и
+registry per namespace, используйте готовые скрипты в `bootstrap/`.
+Для single‑node сервера они работают в режиме NodePort/Ingress и
+используют один внешний IP (MetalLB можно отключить).
+Они автоматизируют:
+- установку K3s (без flannel, с отключённым встроенным netpol и local‑storage);
+- установку Calico и разметку IP‑пулов по namespace;
+- установку Longhorn + политики бэкапов через recurring jobs;
+- установку cert‑manager и (опционально) MetalLB L2;
+- деплой registry в каждом namespace;
+- настройку `/etc/hosts` на хосте, чтобы `registry.<ns>.svc.cluster.local` резолвился контейнерным runtime.
+
+Как пользоваться:
+1) Откройте `bootstrap/config.env` и заполните:
+   - `PROJECTS` — список проектов через пробел (до 4);
+   - `AI_DEV_SLOTS` — количество ai‑слотов;
+   - `ENABLE_METALLB` — `false` для single‑node с одним IP;
+   - `METALLB_L2_ADDRESSES` — диапазоны L2‑адресов (только если MetalLB включён);
+   - `LH_S3_*` — параметры S3 для бэкапов Longhorn;
+   - `VELERO_*` — параметры S3 для Velero (backup k8s‑объектов);
+   - `DEFAULT_SC` — StorageClass по умолчанию (`prod|staging|dev`);
+   - `ENABLE_HOST_FIREWALL` и `*_ALLOW_CIDR` — правила хост‑фаервола.
+2) Запустите:
+
+```bash
+sudo bash bootstrap/bootstrap.sh
+```
+
+Если позже измените `PROJECTS` или `AI_DEV_SLOTS`, выполните:
+
+```bash
+sudo bash bootstrap/scripts/10_generate_k3s_registries.sh
+sudo systemctl restart k3s
+sudo bash bootstrap/scripts/61_update_registry_hosts.sh
+```
+
 ### 1.1. Базовые пакеты
 
 ```bash
