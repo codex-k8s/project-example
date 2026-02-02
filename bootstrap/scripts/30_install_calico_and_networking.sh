@@ -28,8 +28,9 @@ apply_tpl "${ROOT_DIR}" "calico-ippool.yaml.tpl"
 log "Create namespaces (ingress + platform namespaces with platform pool annotation)..."
 export CALICO_IPV4POOLS_JSON='["platform"]'
 apply_tpl "${ROOT_DIR}" "namespace-ingress.yaml.tpl"
+kubectl label namespace ingress scope=platform --overwrite
 
-platform_namespaces=(cert-manager longhorn-system velero actions-runner-system)
+platform_namespaces=(cert-manager longhorn-system velero actions-runner-system ingress-nginx)
 if [[ "${ENABLE_METALLB}" == "true" ]]; then
   platform_namespaces+=(metallb-system)
 fi
@@ -38,6 +39,10 @@ for ns in "${platform_namespaces[@]}"; do
   export NS_NAME="${ns}"
   export CALICO_IPV4POOLS_JSON='["platform"]'
   apply_tpl "${ROOT_DIR}" "namespace-with-pool.yaml.tpl"
+  kubectl label namespace "${ns}" scope=platform --overwrite
+  if [[ "${ns}" == "ingress-nginx" ]]; then
+    kubectl label namespace "${ns}" role=ingress --overwrite
+  fi
 done
 
 log "Create per-project pools + namespaces..."
@@ -60,6 +65,7 @@ for project in ${PROJECTS}; do
     export NS_NAME="${project}-${env}"
     export CALICO_IPV4POOLS_JSON="[\"${POOL_NAME}\"]"
     apply_tpl "${ROOT_DIR}" "namespace-with-pool.yaml.tpl"
+    kubectl label namespace "${NS_NAME}" scope=env --overwrite
   done
 
   # ai-dev-N as /24 Manual in 10.(base+3).X.0/24
@@ -73,6 +79,7 @@ for project in ${PROJECTS}; do
     export NS_NAME="${project}-ai-dev-${n}"
     export CALICO_IPV4POOLS_JSON="[\"${POOL_NAME}\"]"
     apply_tpl "${ROOT_DIR}" "namespace-with-pool.yaml.tpl"
+    kubectl label namespace "${NS_NAME}" scope=env --overwrite
   done
 done
 
