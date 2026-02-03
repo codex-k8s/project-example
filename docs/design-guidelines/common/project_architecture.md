@@ -33,6 +33,11 @@
 - Один сервис = `services/<zone>/<service-name>/`.
 - Снаружи все сервисы выглядят одинаково (единый каркас).
 
+Контракты транспорта (YAML/Proto):
+- gRPC: `proto/` (protobuf).
+- HTTP: OpenAPI YAML (`api/server/api.yaml` в сервисе).
+- Async: AsyncAPI YAML (`api/server/asyncapi.yaml` в сервисе) — для WebSocket и RabbitMQ.
+
 ## Зоны сервисов: internal / external / staff / jobs / dev
 
 Зона определяет доступ и набор обязательных требований.
@@ -48,7 +53,7 @@
 - Публичные API (gateway/BFF/edge).
 - Обязательно: authn/authz + rate limiting + аудит.
 - Типичные транспорты: HTTP/REST, WebSocket; внутрь — gRPC.
-- HTTP API описывается OpenAPI (для Go-сервисов валидация через `github.com/getkin/kin-openapi`).
+- HTTP API описывается OpenAPI (спека хранится рядом с сервисом).
 - UI/клиентские приложения для внешних пользователей (frontend) живут здесь.
 
 ### `services/staff/`
@@ -65,22 +70,11 @@
 ### `services/dev/`
 Правила:
 - Только для разработки; не деплоятся в staging/prod; должны быть явно выключены через `services.yaml`.
+- Здесь могут быть dev-only сервисы и dev-only frontend (панели тестирования/отладки).
 
-## Матрица размещения (что куда класть)
-
-| Артефакт | Где живёт | Примечания |
-|---|---|---|
-| Go доменный сервис (core) | `services/internal/*` | Внутренний gRPC/queue; без публичного ingress. |
-| Go edge/BFF/gateway | `services/external/*` или `services/staff/*` | Внешний HTTP/WS; внутрь — gRPC. |
-| Frontend (public) | `services/external/*` | Vue 3 + TS + Pinia + Axios + Vite(+PWA) + i18n/router/cookies. |
-| Frontend (staff/admin) | `services/staff/*` | То же, но для сотрудников/админки. |
-| Jobs/воркеры/cron | `services/jobs/*` | Без публичного API; идемпотентность и ретраи обязательны. |
-| Dev-only сервисы/утилиты | `services/dev/*` | Только dev; должны быть выключены в staging/prod через `services.yaml`. |
-| Go доменные модели/порты | `services/*/*/internal/domain/*` | Доменные модели отдельно от транспорта; маппинг на границе. |
-| Go repo реализация (Postgres) | `services/*/*/internal/repository/postgres/*` | SQL только в `.sql` + `//go:embed`. |
-| HTTP контракт (OpenAPI) | `services/*/*/api/server/api.yaml` | Для `external|staff`; валидация в Go через `github.com/getkin/kin-openapi`. |
-| WS/async контракт (AsyncAPI) | `services/*/*/api/server/asyncapi.yaml` | Для WebSocket/async сообщений, если используется. |
-| Общие библиотеки | `libs/{go,vue,ts,js}/*` | Только реально переиспользуемое; без доменной логики конкретного продукта. |
+Требования к структуре сервисов по языкам:
+- Детали структуры Go-сервиса см. `docs/design-guidelines/go/services_design_requirements.md`.
+- Детали структуры Vue-приложения см. `docs/design-guidelines/vue/frontend_architecture.md`.
 
 ## Границы сервисов и разделение ответственности
 
