@@ -6,6 +6,10 @@
 - Контракт WebSocket сообщений описывается в AsyncAPI YAML: `api/server/asyncapi.yaml`.
 - В AsyncAPI фиксируем: каналы, типы сообщений, payload schemas, обязательные поля корреляции (если есть), версии сообщений.
 
+## Типы сообщений
+- Типы сообщений генерируются из AsyncAPI в `internal/transport/async/generated/*` (см. `docs/design-guidelines/go/code_generation.md`).
+- Запрещено вручную править сгенерированные типы; маппинг в домен — через casters.
+
 ## Серверный слой
 Правила:
 - WS handlers тонкие: handshake/auth, чтение/парсинг сообщений, маппинг в домен, вызов доменных use-case’ов.
@@ -18,4 +22,3 @@
 
 ## Ссылки
 - Ошибки: `docs/design-guidelines/go/error_handling.md`.
-

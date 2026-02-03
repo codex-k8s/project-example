@@ -84,10 +84,13 @@ for mod in "${mods[@]}"; do
     continue
   fi
 
-  if dupl -files -t "$threshold" < "$tmp_list"; then
-    echo "dupl: дублей не найдено."
-  else
+  # dupl возвращает exit code 0 даже при найденных дублях, поэтому проверяем вывод.
+  out="$(dupl -plumbing -files -t "$threshold" < "$tmp_list")"
+  if [[ -n "$out" ]]; then
+    echo "$out"
     failed=1
+  else
+    echo "dupl: дублей не найдено."
   fi
   rm -f "$tmp_list"
 done
@@ -97,5 +100,4 @@ if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
 
-echo "Готово: dups не найдены."
-
+echo "Готово: дубли не найдены."

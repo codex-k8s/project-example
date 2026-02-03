@@ -6,6 +6,9 @@ help:
 		'Цели кодогенерации:' \
 		'  make gen-openapi-go SVC=services/<zone>/<service> [SPEC=api/server/api.yaml] [OUT=internal/transport/http/generated/openapi.gen.go]' \
 		'  make gen-openapi-ts APP=services/<zone>/<app> SPEC=services/<zone>/<service>/api/server/api.yaml [OUT=src/shared/api/generated]' \
+		'  make validate-asyncapi SVC=services/<zone>/<service> [SPEC=api/server/asyncapi.yaml]' \
+		'  make gen-asyncapi-go  SVC=services/<zone>/<service> [SPEC=api/server/asyncapi.yaml] [OUT=internal/transport/async/generated] [PKG=generated]' \
+		'  make gen-asyncapi-ts  APP=services/<zone>/<app> SPEC=services/<zone>/<service>/api/server/asyncapi.yaml [OUT=src/shared/ws/generated]' \
 		'  make gen-proto-go   SVC=services/<zone>/<service> [PROTO_ROOT=proto] [PROTO=<file.proto>] [GO_OUT=internal/transport/grpc/generated] [OPENAPIV2_OUT=api/server/generated/grpc/openapi] [WITH_GATEWAY=1] [WITH_OPENAPIV2=1]' \
 		'' \
 		'Цели проверок (перед PR):' \
@@ -47,6 +50,31 @@ gen-openapi-ts:
 	@if [ -z "$$APP" ]; then echo "APP обязателен (пример: APP=services/external/web_frontend)"; exit 2; fi
 	@if [ -z "$$SPEC" ]; then echo "SPEC обязателен (пример: SPEC=services/external/chat_backend/api/server/api.yaml)"; exit 2; fi
 	@tools/codegen/openapi/gen-openapi-ts.sh \
+		--app "$$APP" \
+		--spec "$$SPEC" \
+		$${OUT:+--out "$$OUT"}
+
+.PHONY: validate-asyncapi
+validate-asyncapi:
+	@if [ -z "$$SVC" ]; then echo "SVC обязателен (пример: SVC=services/external/chat_backend)"; exit 2; fi
+	@tools/codegen/asyncapi/validate-asyncapi.sh \
+		--service "$$SVC" \
+		$${SPEC:+--spec "$$SPEC"}
+
+.PHONY: gen-asyncapi-go
+gen-asyncapi-go:
+	@if [ -z "$$SVC" ]; then echo "SVC обязателен (пример: SVC=services/external/chat_backend)"; exit 2; fi
+	@tools/codegen/asyncapi/gen-asyncapi-go.sh \
+		--service "$$SVC" \
+		$${SPEC:+--spec "$$SPEC"} \
+		$${OUT:+--out "$$OUT"} \
+		$${PKG:+--package "$$PKG"}
+
+.PHONY: gen-asyncapi-ts
+gen-asyncapi-ts:
+	@if [ -z "$$APP" ]; then echo "APP обязателен (пример: APP=services/external/web_frontend)"; exit 2; fi
+	@if [ -z "$$SPEC" ]; then echo "SPEC обязателен (пример: SPEC=services/external/chat_backend/api/server/asyncapi.yaml)"; exit 2; fi
+	@tools/codegen/asyncapi/gen-asyncapi-ts.sh \
 		--app "$$APP" \
 		--spec "$$SPEC" \
 		$${OUT:+--out "$$OUT"}

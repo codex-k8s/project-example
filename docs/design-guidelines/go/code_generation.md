@@ -74,9 +74,26 @@ make gen-proto-go SVC=services/<zone>/<service> PROTO=proto/<path>/<file>.proto 
 Контракт: `api/server/asyncapi.yaml`.
 
 Правило: контракт должен быть валидным и соответствовать реальной реализации (версии сообщений, bindings, schema).
-На текущий момент (до фиксации стандарта генерации) мы:
-- не генерируем код автоматически из AsyncAPI;
-- используем AsyncAPI как обязательный контракт и поддерживаем его вручную синхронно с кодом.
+
+Инструмент:
+- `@asyncapi/cli` (AsyncAPI CLI)
+
+Валидация (обязательно, перед PR при изменениях AsyncAPI):
+```bash
+make validate-asyncapi SVC=services/<zone>/<service>
+```
+
+Генерация моделей (AsyncAPI -> Go):
+- выход: `internal/transport/async/generated/**`
+```bash
+make gen-asyncapi-go SVC=services/<zone>/<service>
+```
+
+Генерация моделей (AsyncAPI -> TypeScript) для frontend:
+- выход (по умолчанию): `src/shared/ws/generated/**`
+```bash
+make gen-asyncapi-ts APP=services/<zone>/<app> SPEC=services/<zone>/<service>/api/server/asyncapi.yaml
+```
 
 ## Frontend codegen по OpenAPI (TypeScript + Axios)
 Рекомендуемый инструмент:

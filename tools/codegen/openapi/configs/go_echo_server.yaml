@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+package: generated
+output: internal/transport/http/generated/openapi.gen.go
+
+generate:
+  echo-server: true
+  models: true
+  # strict-server для Echo сейчас выключен, потому что oapi-codegen runtime strictmiddleware/echo
+  # использует echo/v4, а у нас стандартный сервер — echo/v5.
+  # Если понадобится строгий server, нужно будет добавить свои v5 strict-middleware + override шаблонов.
+  strict-server: false
+  embedded-spec: false
+
+output-options:
+  skip-fmt: false
+  skip-prune: false

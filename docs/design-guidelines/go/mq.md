@@ -10,7 +10,8 @@
 Consumer (входной транспорт):
 - `internal/transport/mq/rabbit/*` — handlers (decode + ack/nack + вызов домена), без бизнес-логики.
 - `internal/transport/mq/rabbit/middleware/*` — tracing/logging/metrics/correlation (если не в `libs/*`).
-- `internal/transport/mq/rabbit/messages/*` — транспортные DTO сообщений, маппинг в домен через `internal/domain/casters/*`.
+- `internal/transport/async/generated/*` — сгенерированные типы сообщений по AsyncAPI (source of truth транспорта).
+- `internal/transport/mq/rabbit/messages/*` (опционально) — ручные транспортные обёртки/адаптеры, если генерации недостаточно; маппинг в домен через `internal/domain/casters/*`.
 
 Publisher (исходящий адаптер):
 - `internal/mq/rabbit/*` — публикация сообщений (publisher), не вызывается напрямую из transport.

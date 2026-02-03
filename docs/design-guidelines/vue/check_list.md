@@ -11,7 +11,7 @@
 ## HTTP (Axios)
 - Нет прямых вызовов `axios` из компонентов/страниц; есть единый axios instance + интерсепторы + нормализация ошибок в `src/shared/api/*`.
 - UI не показывает сырые сообщения backend; используется `messageKey`/i18n для пользовательских сообщений.
-- Если менялись контракты (OpenAPI/AsyncAPI): сгенерённые файлы в `**/generated/**` обновлены и не правились руками (см. `docs/design-guidelines/go/code_generation.md`).
+- Если менялись контракты (OpenAPI/AsyncAPI): сгенерированные файлы в `**/generated/**` обновлены и не правились руками (см. `docs/design-guidelines/go/code_generation.md`).
 
 ## WebSocket (если есть)
 - Есть единый WS клиент в `src/shared/ws/*` (не “подключение в каждом компоненте”).
