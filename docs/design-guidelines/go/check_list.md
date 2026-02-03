@@ -6,6 +6,10 @@
 - Структура сервиса соответствует `docs/design-guidelines/go/services_design_requirements.md` (domain/transport/repository разделены; нет доменной логики в transport).
 - HTTP (если есть): OpenAPI в `api/server/api.yaml`; реализация REST стека и правила validation/codegen/swagger — в `docs/design-guidelines/go/rest.md`.
 - Async (если есть WS или RabbitMQ): AsyncAPI в `api/server/asyncapi.yaml` (YAML), описаны каналы/сообщения/версии/bindings (см. `docs/design-guidelines/go/websockets.md` и `docs/design-guidelines/go/mq.md`).
+- Если менялись контракты (OpenAPI/proto/AsyncAPI): выполнена регенерация через `make` и изменения в `**/generated/**` закоммичены (см. `docs/design-guidelines/go/code_generation.md`).
+## Автопроверки (обязательно перед PR)
+- Прогнан `make lint-go` (golangci-lint, конфиг `.golangci.yml`) и исправлены нарушения.
+- Прогнан `make dupl-go` (поиск дублей); найденные дубли устранены или осознанно рефакторятся отдельной задачей.
 
 ## Postgres и SQL (если есть)
 - Миграции: `cmd/cli/migrations/*.sql` (goose; timestamp; `-- +goose Up/Down`); история не переписывается.

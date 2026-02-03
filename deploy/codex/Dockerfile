@@ -61,11 +61,15 @@ RUN python3 -m venv "${VIRTUAL_ENV}" \
  && "${VIRTUAL_ENV}/bin/pip" install \
       requests httpx redis psycopg[binary] PyYAML ujson
 
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
- && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest \
- && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest \
- && go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest \
- && GO111MODULE=on go install github.com/google/wire/cmd/wire@latest
+# Используем Makefile из репозитория, чтобы не дублировать команды установки утилит.
+RUN mkdir -p /tmp/project-example
+COPY Makefile /tmp/project-example/Makefile
+RUN make -C /tmp/project-example install-proto-tools \
+ && make -C /tmp/project-example install-lint-tools \
+ && make -C /tmp/project-example install-codegen-tools \
+ && rm -rf /tmp/project-example
+
+RUN GO111MODULE=on go install github.com/google/wire/cmd/wire@latest
 
 ARG CODEXCTL_VERSION=latest
 RUN GOBIN="$(go env GOPATH)/bin" go install github.com/codex-k8s/codexctl/cmd/codexctl@${CODEXCTL_VERSION} \

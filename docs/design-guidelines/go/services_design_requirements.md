@@ -95,6 +95,9 @@
 - `cmd/cli/migrations/*.sql` — миграции БД (goose; timestamp-предфиксированные файлы).
 - `api/server/api.yaml` — OpenAPI (для `external|staff`).
 - `api/server/asyncapi.yaml` — AsyncAPI (для WebSocket и RabbitMQ, если используются).
+- `internal/transport/http/generated/` — сгенерённый Go-код по OpenAPI (только `**/generated/**`, руками не правим).
+- `internal/transport/grpc/generated/` — сгенерённый Go-код по `.proto` (только `**/generated/**`, руками не правим).
+- `api/server/generated/**` — сгенерённые артефакты контрактов (например OpenAPIv2 из proto для dev).
 
 Запрещено:
 - доменная логика в `transport/*`,

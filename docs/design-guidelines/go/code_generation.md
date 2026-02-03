@@ -1,60 +1,96 @@
-# Code Generation (Go/Vue): TODO
+# Кодогенерация (контракты -> код)
 
-Этот документ — точка сборки требований по кодогенерации (server/client) из транспортных контрактов:
-- gRPC/protobuf
-- OpenAPI (REST)
-- AsyncAPI (RabbitMQ/WebSocket)
+Цель: после изменения контрактов (OpenAPI/proto/AsyncAPI) агент обязан регенерировать артефакты через `make`, закоммитить их и не править руками.
 
-TODO: расписать единый стандарт “где лежат спеки”, “что генерим”, “куда кладём”, “как запускать в CI”, “как не коммитить мусор”.
+## Общие правила
+- Любой сгенерированный код/артефакты живут только в директориях `**/generated/**`.
+- Сгенерированное руками не правим. Любая правка = правка контракта/конфига/шаблона + регенерация.
+- Источник правды транспорта:
+  - REST: `api/server/api.yaml` (OpenAPI YAML)
+  - gRPC: `proto/**/*.proto`
+  - async: `api/server/asyncapi.yaml` (AsyncAPI YAML для RabbitMQ + WebSocket)
+- Команды генерации — через `Makefile` в корне репозитория.
 
-## OpenAPI (REST) -> Go
-Инструменты:
+## OpenAPI (REST) -> Go (Echo v5)
+Фиксированный стек описан в: `docs/design-guidelines/go/rest.md`.
+
+Инструмент:
 - `github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest`
 
-TODO:
-- структура пакетов для generated code (types/client/server);
-- `cfg.yaml` шаблоны (models-only, client-only, server-only);
-- правила обновления спеки и регенерации;
-- где храним примеры/fixtures для контракт-тестов.
+Проектные шаблоны/конфиги:
+- config: `tools/codegen/openapi/configs/go_echo_server.yaml`
+- templates: `tools/codegen/openapi/templates/` (включает override для `echo/v5`)
 
-## Protobuf/gRPC -> Go
-Инструменты (устанавливаемые плагины):
+Выход:
+- `internal/transport/http/generated/openapi.gen.go`
+
+Запуск:
+```bash
+make gen-openapi-go SVC=services/<zone>/<service>
+```
+
+Если нужно указать иной путь вывода (обязательно под `**/generated/**`):
+```bash
+make gen-openapi-go SVC=services/<zone>/<service> OUT=internal/transport/http/generated/openapi.gen.go
+```
+
+## Protobuf/gRPC -> Go (+ опционально grpc-gateway + OpenAPIv2 для dev)
+Инструменты (protoc плагины):
 - `google.golang.org/protobuf/cmd/protoc-gen-go@latest`
 - `google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
 - `github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest`
 - `github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest`
 
-Установка (пример):
+Установка плагинов (в контейнере агента уже установлено):
 ```bash
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@latest
-go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
+make install-proto-tools
 ```
 
-TODO:
-- единый способ запуска (Makefile/buf/protoc) и директории output;
-- правила для аннотаций grpc-gateway;
-- генерация OpenAPI из proto для dev/dev-ai окружений (grpc-gateway openapiv2), и как/где её отдаём;
-- генерация dev-grpc HTTP сервера/прокси для отладки (swagger/openapi).
+Выход:
+- Go: `internal/transport/grpc/generated/**` (в т.ч. `*.pb.go`, `*_grpc.pb.go`, `*.pb.gw.go` если включён gateway)
+- OpenAPIv2 (dev): `api/server/generated/grpc/openapi/**`
 
-## AsyncAPI -> (Go + Vue)
-Контракт:
-- `api/server/asyncapi.yaml` (YAML) — единый источник правды для async сообщений RabbitMQ/WebSocket.
+Запуск (все `.proto` сервиса):
+```bash
+make gen-proto-go SVC=services/<zone>/<service>
+```
 
-TODO:
-- выбрать стандарт генерации:
-  - вариант A: генерировать типы сообщений (Go + TS) и вручную писать wiring (producer/consumer/ws);
-  - вариант B: использовать генератор SDK (если выбираем конкретный инструмент);
-- шаблоны:
-  - Go: producer/consumer (RabbitMQ), ws-client/ws-server message dispatch;
-  - Vue: типы сообщений + безопасный парсер/диспетчер + Pinia интеграция;
-- схема версионирования сообщений и миграций.
+Запуск с grpc-gateway + OpenAPIv2:
+```bash
+make gen-proto-go SVC=services/<zone>/<service> WITH_GATEWAY=1 WITH_OPENAPIV2=1
+```
 
-## Frontend codegen по OpenAPI
-TODO: выбрать инструмент для генерации TS типов/клиента из OpenAPI и зафиксировать паттерн интеграции с axios.
+Если нужно указать иные директории вывода (обязательно под `**/generated/**`):
+```bash
+make gen-proto-go SVC=services/<zone>/<service> GO_OUT=internal/transport/grpc/generated OPENAPIV2_OUT=api/server/generated/grpc/openapi WITH_OPENAPIV2=1
+```
 
-Варианты (кандидаты):
-- `openapi-generator` (TS client + axios), если нужна “тяжёлая” генерация с множеством языков.
-- `openapi-ts` / генераторы TS типов, если хотим компактный типизированный слой поверх собственного axios клиента.
+Запуск для одного файла:
+```bash
+make gen-proto-go SVC=services/<zone>/<service> PROTO=proto/<path>/<file>.proto WITH_OPENAPIV2=1
+```
 
+## AsyncAPI (RabbitMQ + WebSocket)
+Контракт: `api/server/asyncapi.yaml`.
+
+Правило: контракт должен быть валидным и соответствовать реальной реализации (версии сообщений, bindings, schema).
+На текущий момент (до фиксации стандарта генерации) мы:
+- не генерируем код автоматически из AsyncAPI;
+- используем AsyncAPI как обязательный контракт и поддерживаем его вручную синхронно с кодом.
+
+## Frontend codegen по OpenAPI (TypeScript + Axios)
+Рекомендуемый инструмент:
+- `@hey-api/openapi-ts` + `@hey-api/client-axios`
+
+Рекомендованный выход (внутри конкретного фронта):
+- `src/shared/api/generated/**`
+
+Запуск (через `make`, рекомендуется):
+```bash
+make gen-openapi-ts APP=services/<zone>/<app> SPEC=services/<zone>/<service>/api/server/api.yaml
+```
+
+Запуск (пример напрямую через `npx`):
+```bash
+npx @hey-api/openapi-ts -i api/server/api.yaml -o src/shared/api/generated -c @hey-api/client-axios
+```

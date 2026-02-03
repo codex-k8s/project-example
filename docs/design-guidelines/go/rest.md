@@ -26,21 +26,19 @@
 - Сообщение ошибки валидатора не считается публичным контрактом; наружу отдаём безопасные поля (например, `message/loc/field`).
 
 ## Codegen (OpenAPI -> Go)
-Генерация запускается через `go generate` / CI, а конфигурация хранится в репо.
+Генерация запускается через `make` (см. `docs/design-guidelines/go/code_generation.md`), а конфигурация/шаблоны — в репозитории.
 
 Рекомендуемый подход:
 - хранить `cfg.yaml` (oapi-codegen config) рядом со спекой или рядом с генерируемым пакетом;
 - генерировать отдельно types + server/client (по необходимости), не смешивая с бизнес-логикой;
 - не редактировать сгенерённый файл руками.
 
-Пример `//go:generate`:
-```go
-//go:generate go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest -config cfg.yaml api/server/api.yaml
-package api
+Пример запуска:
+```bash
+make gen-openapi-go SVC=services/<zone>/<service>
 ```
 
 ## Swagger UI
 Правило:
 - В `external|staff` сервисах отдаём Swagger UI, который показывает `api/server/api.yaml` (и статически, и/или через эндпоинт).
 - В prod это включается осознанно (по политике безопасности продукта), в dev/stage — обычно включено.
-

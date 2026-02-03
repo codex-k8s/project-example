@@ -11,7 +11,7 @@
 - `docs/design-guidelines/go/grpc.md` — gRPC (границы, контракты, ссылки на codegen).
 - `docs/design-guidelines/go/mq.md` — RabbitMQ (контракт AsyncAPI, producer/consumer, ссылки на инфра).
 - `docs/design-guidelines/go/websockets.md` — WebSocket (контракт AsyncAPI, правила сервера).
-- `docs/design-guidelines/go/code_generation.md` — TODO по кодогенерации (grpc/openapi/asyncapi + frontend).
+- `docs/design-guidelines/go/code_generation.md` — обязательные правила и команды кодогенерации (grpc/openapi/asyncapi + frontend).
 - `docs/design-guidelines/go/code_commenting_rules.md` — правила комментариев в Go.
 - `docs/design-guidelines/go/error_handling.md` — обязательные правила обработки ошибок в Go.
 - `docs/design-guidelines/go/libraries.md` — что выносить в `libs/go/*` и как.

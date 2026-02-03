@@ -17,3 +17,4 @@
 ## Профильные чек-листы
 - Если PR затрагивает Go: выполнен `docs/design-guidelines/go/check_list.md`.
 - Если PR затрагивает Vue: выполнен `docs/design-guidelines/vue/check_list.md`.
+- Если PR затрагивает Go: прогнаны `make lint-go` и `make dupl-go` (или `make lint`) и устранены найденные проблемы.
