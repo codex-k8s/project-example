@@ -5,7 +5,7 @@
 ## Архитектура и структура
 - Структура сервиса соответствует `docs/design-guidelines/go/services_design_requirements.md` (domain/transport/repository разделены; нет доменной логики в transport).
 - HTTP (если есть): OpenAPI в `api/server/api.yaml`; реализация REST стека и правила validation/codegen/swagger — в `docs/design-guidelines/go/rest.md`.
-- Async (если есть WS или RabbitMQ): AsyncAPI в `api/server/asyncapi.yaml` (YAML), описаны каналы/сообщения/версии/bindings.
+- Async (если есть WS или RabbitMQ): AsyncAPI в `api/server/asyncapi.yaml` (YAML), описаны каналы/сообщения/версии/bindings (см. `docs/design-guidelines/go/websockets.md` и `docs/design-guidelines/go/mq.md`).
 
 ## Postgres и SQL (если есть)
 - Миграции: `cmd/cli/migrations/*.sql` (goose; timestamp; `-- +goose Up/Down`); история не переписывается.

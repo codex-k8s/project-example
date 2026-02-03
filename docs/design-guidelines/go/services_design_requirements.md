@@ -27,6 +27,7 @@
 - Внутренние sync-вызовы сервис-сервис.
 - Контракты в `proto/`; изменения версионируемы и обратно совместимы.
 - Ошибки маппятся в gRPC status codes (единым правилом) и документируются.
+Реализация границ/паттернов gRPC: `docs/design-guidelines/go/grpc.md`.
 
 ### HTTP/REST (внешний интерфейс)
 Правила:
@@ -41,13 +42,13 @@
 - Real-time push/двунаправленность.
 - Фиксированный формат сообщений (тип + payload), ping/pong, таймауты, лимиты.
 - Масштабирование: sticky sessions или broker.
-- Для описания протокола/сообщений используем AsyncAPI YAML: `api/server/asyncapi.yaml` (единый контракт; без привязки к реализации).
+Контракт и правила WebSocket: `docs/design-guidelines/go/websockets.md`.
 
 ### RabbitMQ (асинхронно)
 Правила:
 - Async задачи/события/интеграции; слабая связность; устойчивость к сбоям.
 - Идемпотентность, контролируемые ретраи (лимит+DLQ), `message_id`/correlation-id для важных цепочек.
-- Контракты сообщений/каналов RabbitMQ описываются в AsyncAPI YAML: `api/server/asyncapi.yaml` (AMQP bindings: exchange/queue/routingKey и т.п.).
+Контракт и правила RabbitMQ: `docs/design-guidelines/go/mq.md`.
 
 ## Внутренняя структура сервиса и слои
 
