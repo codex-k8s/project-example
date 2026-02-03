@@ -16,7 +16,6 @@
 - `external`/`staff`: thin-edge (валидация, authn/authz, маршрутизация, агрегация; без доменных правил).
 - `jobs`: cron/worker/consumer, без публичного API.
 - `dev`: только dev, отключено в prod окружениях.
-  - UI/приложения (frontend) размещаются в `external` или `staff` в зависимости от аудитории.
 
 Мини-документация сервиса:
 - В каждом сервисе обязателен краткий `README.md`: назначение, входы/выходы (HTTP/gRPC/queue), ключевые env.
@@ -42,12 +41,13 @@
 - Real-time push/двунаправленность.
 - Фиксированный формат сообщений (тип + payload), ping/pong, таймауты, лимиты.
 - Масштабирование: sticky sessions или broker.
-- Для описания WS протокола/сообщений используем AsyncAPI: `api/server/asyncapi.yaml` (единый контракт сообщений; без привязки к реализации).
+- Для описания протокола/сообщений используем AsyncAPI YAML: `api/server/asyncapi.yaml` (единый контракт; без привязки к реализации).
 
 ### RabbitMQ (асинхронно)
 Правила:
 - Async задачи/события/интеграции; слабая связность; устойчивость к сбоям.
 - Идемпотентность, контролируемые ретраи (лимит+DLQ), `message_id`/correlation-id для важных цепочек.
+- Контракты сообщений/каналов RabbitMQ описываются в AsyncAPI YAML: `api/server/asyncapi.yaml` (AMQP bindings: exchange/queue/routingKey и т.п.).
 
 ## Внутренняя структура сервиса и слои
 
@@ -63,6 +63,9 @@
 - `internal/transport/{http,grpc,ws}/` — handlers/registration без бизнес-логики.
 - `internal/transport/{http,grpc,ws}/middleware/` — middleware/interceptors, специфичные для сервиса (не из `libs/*`).
 - `internal/transport/helpers/` — неэкспортируемые helpers для транспорта.
+- `internal/transport/mq/rabbit/` — входной транспорт RabbitMQ (consumer handlers, ack/nack, decoding), без бизнес-логики.
+- `internal/transport/mq/rabbit/middleware/` — middleware для consumer’ов (корреляция/логирование/трейсы/метрики), если не вынесено в `libs/*`.
+- `internal/transport/mq/rabbit/messages/` — транспортные DTO сообщений (RabbitMQ), маппинг в домен через `internal/domain/casters/*`.
 
 - `internal/domain/` — доменная область (правила, модели, порты).
 - `internal/domain/service/` — доменная бизнес-логика.
@@ -85,12 +88,12 @@
   - сложные запросы допускают шаблонизацию (`text/template`) в `.sql`, с явными параметрами.
 - `internal/repository/postgres/helpers/` — неэкспортируемые helpers репозитория (скан, построители параметров и т.п.).
 - `internal/cache/redis/` и `internal/cache/redis/helpers/` — cache адаптер и его helpers.
-- `internal/mq/rabbit/` и `internal/mq/rabbit/helpers/` — MQ адаптер и его helpers.
+- `internal/mq/rabbit/` и `internal/mq/rabbit/helpers/` — исходящий RabbitMQ адаптер (publisher), не вызывается напрямую из transport.
 - `internal/observability/` — подключение логов/метрик/трейсов (или через `libs/*`).
 - `cmd/cli/` — сервисная CLI (в т.ч. миграции).
 - `cmd/cli/migrations/*.sql` — миграции БД (goose; timestamp-предфиксированные файлы).
 - `api/server/api.yaml` — OpenAPI (для `external|staff`).
-- `api/server/asyncapi.yaml` — AsyncAPI (для WebSocket/async сообщений, если используется).
+- `api/server/asyncapi.yaml` — AsyncAPI (для WebSocket и RabbitMQ, если используются).
 
 Запрещено:
 - доменная логика в `transport/*`,

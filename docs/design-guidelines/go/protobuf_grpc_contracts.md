@@ -1,4 +1,4 @@
-# 6 — Protobuf/gRPC: правила транспортных контрактов
+# Protobuf/gRPC: правила транспортных контрактов
 
 Цель: стабильные gRPC контракты между сервисами. `.proto` — источник правды **транспорта**, а не доменных моделей.
 
@@ -23,4 +23,4 @@
   - validation -> `InvalidArgument`
   - conflict -> `AlreadyExists`/`FailedPrecondition` (выбрать и зафиксировать правило)
   - temporary unavailable -> `Unavailable`
-- Нельзя “всё превращать” в `Unknown/Internal` без маппинга доменной семантики (см. `docs/design-guidelines/go/6_error_handling.md`).
+- Нельзя “всё превращать” в `Unknown/Internal` без маппинга доменной семантики (см. `docs/design-guidelines/go/error_handling.md`).
