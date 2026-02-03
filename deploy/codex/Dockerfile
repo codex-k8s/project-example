@@ -4,6 +4,7 @@ ARG NODE_IMAGE_VERSION=24-bookworm
 FROM node:${NODE_IMAGE_VERSION}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG GOLANG_VERSION=1.25.1
 ARG CODEX_IMAGE_VERSION
 ENV CODEX_IMAGE_VERSION=${CODEX_IMAGE_VERSION}
 
@@ -36,7 +37,7 @@ RUN install -m 0755 -d /etc/apt/keyrings \
 RUN npm install -g @openai/codex \
  && ln -sf "$(npm bin -g)/codex" /usr/local/bin/codex || true
 
-RUN curl -fsSL https://go.dev/dl/go1.25.1.linux-amd64.tar.gz -o /tmp/go.tgz \
+RUN curl -fsSL "https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tgz \
  && rm -rf /usr/local/go \
  && tar -C /usr/local -xzf /tmp/go.tgz \
  && ln -sf /usr/local/go/bin/go /usr/local/bin/go \

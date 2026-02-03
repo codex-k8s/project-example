@@ -6,6 +6,10 @@
 - Контракт RabbitMQ сообщений/каналов описывается в AsyncAPI YAML: `api/server/asyncapi.yaml`.
 - В AsyncAPI фиксируем: версии сообщений, exchange/queue/routingKey, headers (correlation/message id), payload schemas.
 
+## Ограничения по зонам
+- RabbitMQ (AMQP) разрешён только в `services/internal/*` и `services/jobs/*`.
+- `services/external/*` и `services/staff/*` не подключаются к RabbitMQ напрямую. Если edge/WS должен инициировать async-операцию, он вызывает внутренний сервис по gRPC/HTTP, а уже внутренний сервис публикует сообщение.
+
 ## Где живёт код
 Consumer (входной транспорт):
 - `internal/transport/mq/rabbit/*` — handlers (decode + ack/nack + вызов домена), без бизнес-логики.

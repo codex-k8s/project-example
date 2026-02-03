@@ -74,6 +74,9 @@ make gen-proto-go SVC=services/<zone>/<service> PROTO=proto/<path>/<file>.proto 
 Контракт: `api/server/asyncapi.yaml`.
 
 Правило: контракт должен быть валидным и соответствовать реальной реализации (версии сообщений, bindings, schema).
+Важно по зонам:
+- `services/external|staff/*`: AsyncAPI описывает только WebSocket (ws/http bindings), прямое AMQP запрещено.
+- `services/internal|jobs/*`: AsyncAPI может описывать RabbitMQ (amqp bindings) и/или WebSocket, если сервис их реально использует.
 
 Инструмент:
 - `@asyncapi/cli` (AsyncAPI CLI)

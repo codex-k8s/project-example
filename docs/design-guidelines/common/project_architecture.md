@@ -52,7 +52,8 @@
 Правила:
 - Публичные API (gateway/BFF/edge).
 - Обязательно: authn/authz + rate limiting + аудит.
-- Типичные транспорты: HTTP/REST, WebSocket; внутрь — gRPC.
+- Типичные транспорты: HTTP/REST, WebSocket; внутрь — gRPC/HTTP.
+- Запрещено: прямое подключение к RabbitMQ (AMQP). Async (RabbitMQ) живёт в `internal|jobs`.
 - HTTP API описывается OpenAPI (спека хранится рядом с сервисом).
 - UI/клиентские приложения для внешних пользователей (frontend) живут здесь.
 
@@ -60,12 +61,14 @@
 Правила:
 - Сервисы для сотрудников (VPN/SSO/IP allowlist и т.п.).
 - Обязательно: аудит действий; отдельные роли/права; отдельные маршруты/домены.
+- Запрещено: прямое подключение к RabbitMQ (AMQP). Async (RabbitMQ) живёт в `internal|jobs`.
 - UI/приложения для сотрудников живут здесь.
 
 ### `services/jobs/`
 Правила:
 - Фоновые задачи (CronJob/worker/consumer).
 - Обязательно: идемпотентность + корректные ретраи; health/metrics есть, но не публично.
+- Здесь допустимы consumer/publisher RabbitMQ (если нужно).
 
 ### `services/dev/`
 Правила:
