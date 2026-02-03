@@ -33,8 +33,8 @@
 - Внешние клиенты/браузеры/интеграции.
 - Версионирование (`/api/v1/...`), корректные HTTP status codes, единый формат ошибок.
 - Для public endpoints обязательны auth и rate limiting.
-- HTTP описываем через OpenAPI; для Go-сервисов используем `github.com/getkin/kin-openapi` для загрузки/валидации спеки и запросов.
-- Для `external|staff` OpenAPI-спека хранится в `api/server/api.yaml` сервиса.
+- HTTP описываем через OpenAPI YAML; для `external|staff` спека хранится в `api/server/api.yaml` сервиса.
+- Реализация REST стека (server/validation/codegen/swagger) описана в `docs/design-guidelines/go/rest.md`.
 
 ### WebSocket (real-time)
 Правила:

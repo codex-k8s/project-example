@@ -4,7 +4,7 @@
 
 ## Архитектура и структура
 - Структура сервиса соответствует `docs/design-guidelines/go/services_design_requirements.md` (domain/transport/repository разделены; нет доменной логики в transport).
-- HTTP (если есть): OpenAPI в `api/server/api.yaml`, request validation через `github.com/getkin/kin-openapi`, handler’ы не дублируют schema/type validation.
+- HTTP (если есть): OpenAPI в `api/server/api.yaml`; реализация REST стека и правила validation/codegen/swagger — в `docs/design-guidelines/go/rest.md`.
 - Async (если есть WS или RabbitMQ): AsyncAPI в `api/server/asyncapi.yaml` (YAML), описаны каналы/сообщения/версии/bindings.
 
 ## Postgres и SQL (если есть)
