@@ -5,11 +5,18 @@
 ## PostgreSQL: правила работы
 
 - Схема = отражение домена; ограничения (FK/unique/check) задаются в БД.
-- Схема меняется только миграциями (не руками в prod). Пример: `GOOSE_DRIVER=postgres GOOSE_DBSTRING="host=${PG_HOST} port=${PG_PORT} dbname=${PG_DB_NAME} user=${PG_USER} password=${PG_PASSWORD} sslmode=disable" goose -dir migrations up`
+- Схема меняется только миграциями (не руками в prod). Миграции храним в `cmd/cli/migrations/*.sql`, запускаем goose из `cmd/cli`.
+- Миграции goose: timestamp-префикс, секции `-- +goose Up/Down`.
 - Индексы/FK — осознанно под реальные запросы.
 - Доступ: пул соединений; ресурсы закрывать; транзакции минимальной длительности.
 - SQL только с placeholders (без конкатенаций/инъекций).
 - SQL живёт в repository-слое; repo возвращает доменно-осмысленные ошибки (not found/conflict/temporary unavailable); домен не знает про SQL/pgx/ORM.
+- Реализация repo на Postgres: `internal/repository/postgres/...`; интерфейсы repo: `internal/domain/repository/...`.
+- Запрещено: SQL как строка в Go-коде. Требование:
+  - каждый запрос в отдельном `internal/repository/postgres/<model>/sql/*.sql`;
+  - загрузка только через `//go:embed`;
+  - запросы имеют имя-комментарий `-- name: <model>__<operation> :one|:many|:exec`;
+  - сложные запросы допускают шаблонизацию в `.sql` (например, `text/template` или аналог), с явными и безопасными параметрами.
 - Observability: метрики latency/error + спаны на ключевые DB операции.
 - Анти-паттерны: shared DB без владельца; бизнес-логика в SQL; транзакции вокруг сетевых вызовов.
 
