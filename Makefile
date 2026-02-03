@@ -97,7 +97,7 @@ install-lint-tools:
 install-codegen-tools:
 	@go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	@go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
-	@if command -v npm >/dev/null 2>&1; then npm install -g @hey-api/openapi-ts @hey-api/client-axios @asyncapi/cli; else echo "npm не найден: пропускаю установку openapi-ts/asyncapi (нужно для фронта)."; fi
+	@if command -v npm >/dev/null 2>&1; then npm install -g @hey-api/openapi-ts @hey-api/client-axios @asyncapi/cli; else echo "npm не найден: пропускаю установку openapi-ts/asyncapi."; fi
 	@echo "Готово: codegen/contract CLI инструменты установлены (oapi-codegen, grpcurl, openapi-ts, asyncapi)."
 
 .PHONY: lint-go
