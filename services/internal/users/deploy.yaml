@@ -1,0 +1,120 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+{{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-config
+  namespace: {{ .Namespace }}
+data:
+  SERVICE_NAME: "users"
+  GRPC_PORT: "8080"
+  HTTP_PORT: "8081"
+  POSTGRES_DB: "users"
+  TZ: "UTC"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users
+  namespace: {{ .Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users
+  template:
+    metadata:
+      labels:
+        app: users
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: {{ $registryHost }}/library/busybox:{{ index .Versions "busybox" }}
+          command:
+            - sh
+            - -c
+            - >-
+              until nc -zw1 postgres 5432; do
+                echo "waiting for postgres";
+                sleep 2;
+              done
+        - name: create-db
+          image: {{ $registryHost }}/library/postgres:{{ index .Versions "postgres-image" }}
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: users-config
+          command:
+            - sh
+            - -c
+            - >-
+              export PGPASSWORD="${POSTGRES_PASSWORD}";
+              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -tc
+              "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'" | grep -q 1
+              || psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -c
+              "CREATE DATABASE \"${POSTGRES_DB}\"";
+        - name: migrate
+          image: {{ $registryHost }}/project-example/users:{{ $tagEnv }}-{{ index .Versions "users" }}
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: users-config
+          command: ["sh", "-c", "cd /workspace/services/internal/users && go run ./cmd/cli migrate up"]
+      containers:
+        - name: users
+          image: {{ $registryHost }}/project-example/users:{{ $tagEnv }}-{{ index .Versions "users" }}
+          ports:
+            - containerPort: 8080
+              name: grpc
+            - containerPort: 8081
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health/livez
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health/readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: HOME
+              value: "/tmp"
+            - name: GOCACHE
+              value: "/tmp/go-build-cache"
+            - name: GOMODCACHE
+              value: "/tmp/go-mod-cache"
+            - name: GOPATH
+              value: "/tmp/go"
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - configMapRef:
+                name: db-config
+            - configMapRef:
+                name: users-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    app: users
+  ports:
+    - name: grpc
+      port: 8080
+      targetPort: 8080
+    - name: http
+      port: 8081
+      targetPort: 8081

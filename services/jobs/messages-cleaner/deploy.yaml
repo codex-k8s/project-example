@@ -1,0 +1,37 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+{{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: messages-cleaner-config
+  namespace: {{ .Namespace }}
+data:
+  SERVICE_NAME: "messages-cleaner"
+  MESSAGES_GRPC_ADDR: "messages:8080"
+  OLDER_THAN_SECONDS: "600"
+  TZ: "UTC"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: messages-cleaner
+  namespace: {{ .Namespace }}
+spec:
+  schedule: "*/1 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: wait-for-messages
+              image: {{ $registryHost }}/library/busybox:{{ index .Versions "busybox" }}
+              command: ["sh", "-c", "until nc -zw1 messages 8080; do echo 'waiting for messages'; sleep 2; done"]
+          containers:
+            - name: messages-cleaner
+              image: {{ $registryHost }}/project-example/messages-cleaner:{{ $tagEnv }}-{{ index .Versions "messages-cleaner" }}
+              envFrom:
+                - configMapRef:
+                    name: messages-cleaner-config
+

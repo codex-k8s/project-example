@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package users.v1;
+
+option go_package = "github.com/codex-k8s/project-example/proto/users/v1;usersv1";
+
+import "google/protobuf/timestamp.proto";
+
+service UsersService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message User {
+  int64 id = 1;
+  string username = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  User user = 1;
+}
+
+message AuthenticateRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthenticateResponse {
+  User user = 1;
+}
+
+message GetUserRequest {
+  int64 id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+

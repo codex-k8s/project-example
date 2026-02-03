@@ -5,9 +5,8 @@
 # {{- $aiStagingCodeRoot := printf "%s/ai-staging/src" $codeRootRel -}}
 # {{- $slotCodeRoot := $codeRootRel -}}
 # {{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
-# {{- $dataPVC := envOr "CODEXCTL_DATA_PVC" (printf "%s-data" .Project) -}}
-# {{- $registryPVC := envOr "CODEXCTL_REGISTRY_PVC" (printf "%s-registry" .Project) -}}
 # {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+
 project: project-example
 
 codex:
@@ -21,18 +20,19 @@ codex:
     - dupl - поиск дублирующегося кода в Go-проектах
     - golangci-lint - статический анализ Go-кода
   links:
-    - title: Chat frontend
+    - title: Chat web
       path: /
-    - title: Django admin
-      path: /admin/
+    - title: Gateway docs
+      path: /docs
   projectContext: |
-    - Перед началом работы прочитай ./AGENTS.md и релевантную документацию в docs/*.md.
-    - Для проверки используй kubectl (логи и статусы pod’ов/деплойментов) и HTTP‑эндпоинты сервисов (frontend, Go API, Django admin).
+    - Перед началом работы прочитай ./AGENTS.md и релевантную документацию в docs/design-guidelines/**.
     - Для работы с манифестами используй `codexctl render` и `codexctl apply` только с фильтрами `--only-services/--only-infra` (или `--skip-*`); не запускай apply без фильтров и не включай сервис `codex`.
   servicesOverview: |
-    - Django backend: админка и миграции БД PostgreSQL.
-    - Go chat backend: HTTP API чата, авторизация, работа с PostgreSQL и Redis.
-    - Web frontend (Vue3 + Pinia): одностраничный интерфейс для регистрации, логина и общения в общем чате.
+    - chat-web (Vue3): SPA интерфейс чата (логин/регистрация/сообщения).
+    - chat-gateway (external, Go): REST + WebSocket, cookie-сессии, интеграция внутрь по gRPC.
+    - users (internal, Go): пользователи и пароли (Postgres).
+    - messages (internal, Go): сообщения (Postgres) + gRPC stream событий.
+    - messages-cleaner (jobs, Go): cron-задача, удаляет сообщения старше 10 минут.
   timeouts:
     exec: "60m"
     rollout: "30m"
@@ -75,9 +75,11 @@ state:
   configmapPrefix: codex-env-
 
 versions:
-  django-backend: "0.1.1"
-  chat-backend: "0.1.2"
-  web-frontend: "0.1.2"
+  users: "0.1.0"
+  messages: "0.1.0"
+  chat-gateway: "0.1.0"
+  messages-cleaner: "0.1.0"
+  chat-web: "0.1.0"
   codex: "0.2.2"
   codexctl: "latest"
   busybox: "1.37.0"
@@ -86,9 +88,7 @@ versions:
   redis-image: "7-bookworm"
   jaeger: "2.11.0"
   node: "22-bookworm"
-  python: "3.13-bookworm"
-  python-slim: "3.13-slim"
-  golang: "1.25.1-bookworm"
+  golang: "1.25.6-bookworm"
   debian-slim: "bookworm-slim"
   kubectl: "v1.34.1"
   protoc: "32.1"
@@ -111,40 +111,60 @@ images:
     from: 'docker.io/jaegertracing/jaeger:{{ index .Versions "jaeger" }}'
     local: '{{ $registryHost }}/library/jaeger:{{ index .Versions "jaeger" }}'
 
-  django-backend:
+  users:
     type: build
-    repository: '{{ $registryHost }}/project-example/django-backend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
-    dockerfile: 'services/django_backend/Dockerfile'
-    context: 'services/django_backend'
-    buildArgs:
-      PYTHON_IMAGE_VERSION: '{{ index .Versions "python" }}'
-      SERVICE_VERSION: '{{ index .Versions "django-backend" }}'
-
-  chat-backend:
-    type: build
-    repository: '{{ $registryHost }}/project-example/chat-backend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
-    dockerfile: 'services/chat_backend/Dockerfile'
-    context: 'services/chat_backend'
+    repository: '{{ $registryHost }}/project-example/users'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "users") }}'
+    dockerfile: 'services/internal/users/Dockerfile'
+    context: '.'
     buildArgs:
       GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
-      SERVICE_VERSION: '{{ index .Versions "chat-backend" }}'
+      SERVICE_VERSION: '{{ index .Versions "users" }}'
 
-  web-frontend:
+  messages:
     type: build
-    repository: '{{ $registryHost }}/project-example/web-frontend'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
-    dockerfile: 'services/web_frontend/Dockerfile'
-    context: 'services/web_frontend'
+    repository: '{{ $registryHost }}/project-example/messages'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "messages") }}'
+    dockerfile: 'services/internal/messages/Dockerfile'
+    context: '.'
+    buildArgs:
+      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
+      SERVICE_VERSION: '{{ index .Versions "messages" }}'
+
+  chat-gateway:
+    type: build
+    repository: '{{ $registryHost }}/project-example/chat-gateway'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-gateway") }}'
+    dockerfile: 'services/external/chat-gateway/Dockerfile'
+    context: '.'
+    buildArgs:
+      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
+      SERVICE_VERSION: '{{ index .Versions "chat-gateway" }}'
+
+  messages-cleaner:
+    type: build
+    repository: '{{ $registryHost }}/project-example/messages-cleaner'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "messages-cleaner") }}'
+    dockerfile: 'services/jobs/messages-cleaner/Dockerfile'
+    context: '.'
+    buildArgs:
+      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
+      SERVICE_VERSION: '{{ index .Versions "messages-cleaner" }}'
+
+  chat-web:
+    type: build
+    repository: '{{ $registryHost }}/project-example/chat-web'
+    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-web") }}'
+    dockerfile: 'services/external/chat-web/Dockerfile'
+    context: 'services/external/chat-web'
     buildArgs:
       NODE_IMAGE_VERSION: '{{ index .Versions "node" }}'
-      SERVICE_VERSION: '{{ index .Versions "web-frontend" }}'
+      SERVICE_VERSION: '{{ index .Versions "chat-web" }}'
 
   codex:
     type: build
     repository: '{{ $registryHost }}/project-example/codex'
-    tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "codex") }}'
+    tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "codex") }}'
     dockerfile: 'deploy/codex/Dockerfile'
     context: '.'
     buildArgs:
@@ -274,89 +294,142 @@ infrastructure:
       - path: deploy/jaeger.yaml
 
 services:
-  - name: django-backend
+  - name: chat-web
     manifests:
-      - path: services/django_backend/deploy.yaml
+      - path: services/external/chat-web/deploy.yaml
     image:
-      repository: '{{ $registryHost }}/project-example/django-backend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "django-backend") }}'
+      repository: '{{ $registryHost }}/project-example/chat-web'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-web") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/backend"
-            subPath: '{{ printf "%s/services/django_backend" $devCodeRoot }}'
+            mountPath: "/app"
+            subPath: '{{ printf "%s/services/external/chat-web" $devCodeRoot }}'
       ai-staging:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/backend"
-            subPath: '{{ printf "%s/services/django_backend" $aiStagingCodeRoot }}'
+            mountPath: "/app"
+            subPath: '{{ printf "%s/services/external/chat-web" $aiStagingCodeRoot }}'
       ai:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/backend"
-            subPath: '{{ printf "%s/%d/src/services/django_backend" $slotCodeRoot .Slot }}'
+            mountPath: "/app"
+            subPath: '{{ printf "%s/%d/src/services/external/chat-web" $slotCodeRoot .Slot }}'
         dropKinds: ["Ingress"]
 
-  - name: chat-backend
+  - name: chat-gateway
     manifests:
-      - path: services/chat_backend/deploy.yaml
+      - path: services/external/chat-gateway/deploy.yaml
     image:
-      repository: '{{ $registryHost }}/project-example/chat-backend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-backend") }}'
+      repository: '{{ $registryHost }}/project-example/chat-gateway'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "chat-gateway") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/services/chat_backend" $devCodeRoot }}'
+            mountPath: "/workspace"
+            subPath: '{{ $devCodeRoot }}'
       ai-staging:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/services/chat_backend" $aiStagingCodeRoot }}'
+            mountPath: "/workspace"
+            subPath: '{{ $aiStagingCodeRoot }}'
       ai:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/%d/src/services/chat_backend" $slotCodeRoot .Slot }}'
+            mountPath: "/workspace"
+            subPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
         dropKinds: ["Ingress"]
 
-  - name: web-frontend
+  - name: users
     manifests:
-      - path: services/web_frontend/deploy.yaml
+      - path: services/internal/users/deploy.yaml
     image:
-      repository: '{{ $registryHost }}/project-example/web-frontend'
-      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "web-frontend") }}'
+      repository: '{{ $registryHost }}/project-example/users'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "users") }}'
     when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
     overlays:
       dev:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/services/web_frontend" $devCodeRoot }}'
+            mountPath: "/workspace"
+            subPath: '{{ $devCodeRoot }}'
       ai-staging:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/services/web_frontend" $aiStagingCodeRoot }}'
+            mountPath: "/workspace"
+            subPath: '{{ $aiStagingCodeRoot }}'
       ai:
         pvcMounts:
           - name: workspace
             claimName: '{{ $workspacePVC }}'
-            mountPath: "/app"
-            subPath: '{{ printf "%s/%d/src/services/web_frontend" $slotCodeRoot .Slot }}'
-        dropKinds: ["Ingress"]
+            mountPath: "/workspace"
+            subPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
+
+  - name: messages
+    manifests:
+      - path: services/internal/messages/deploy.yaml
+    image:
+      repository: '{{ $registryHost }}/project-example/messages'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "messages") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
+    overlays:
+      dev:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ $devCodeRoot }}'
+      ai-staging:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ $aiStagingCodeRoot }}'
+      ai:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
+
+  - name: messages-cleaner
+    manifests:
+      - path: services/jobs/messages-cleaner/deploy.yaml
+    image:
+      repository: '{{ $registryHost }}/project-example/messages-cleaner'
+      tagTemplate: '{{ printf "%s-%s" (ternary (eq .Env "ai") "ai-staging" .Env) (index .Versions "messages-cleaner") }}'
+    when: '{{ or (eq .Env "dev") (eq .Env "ai-staging") (eq .Env "ai") }}'
+    overlays:
+      dev:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ $devCodeRoot }}'
+      ai-staging:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ $aiStagingCodeRoot }}'
+      ai:
+        pvcMounts:
+          - name: workspace
+            claimName: '{{ $workspacePVC }}'
+            mountPath: "/workspace"
+            subPath: '{{ printf "%s/%d/src" $slotCodeRoot .Slot }}'
 
   - name: codex
     manifests:

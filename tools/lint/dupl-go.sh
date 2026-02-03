@@ -55,7 +55,7 @@ if [[ -n "$service" ]]; then
     while IFS= read -r -d '' m; do mods+=("$(dirname "$m")"); done < <(find "$svc_abs" -name go.mod -print0 | sort -z)
   fi
 else
-  while IFS= read -r -d '' m; do mods+=("$(dirname "$m")"); done < <(find "$root" -name go.mod -print0 | sort -z)
+  while IFS= read -r -d '' m; do mods+=("$(dirname "$m")"); done < <(find "$root" -name go.mod -not -path "$root/.local/old-svc/*" -print0 | sort -z)
 fi
 
 if [[ ${#mods[@]} -eq 0 ]]; then

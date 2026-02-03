@@ -58,7 +58,8 @@ if [[ ! -d "$svc_abs" ]]; then
 fi
 
 proto_root="${proto_root:-proto}"
-proto_root_abs="$svc_abs/$proto_root"
+# gRPC контракты храним централизованно в корне репозитория: ./proto/**.proto
+proto_root_abs="$root/$proto_root"
 if [[ ! -d "$proto_root_abs" ]]; then
   echo "proto-root не найден: $proto_root (ожидали директорию: $proto_root_abs)"
   exit 2
@@ -90,21 +91,21 @@ fi
 declare -a files=()
 if [[ ${#protos[@]} -gt 0 ]]; then
   for f in "${protos[@]}"; do
-    if [[ -f "$svc_abs/$f" ]]; then
-      files+=("$f")
+    # Разрешаем передавать как "proto/...", так и путь внутри proto-root (например "users/v1/users.proto").
+    rel="$f"
+    rel="${rel#${proto_root}/}"
+    rel="${rel#./}"
+    if [[ -f "$proto_root_abs/$rel" ]]; then
+      files+=("$rel")
       continue
     fi
-    if [[ -f "$proto_root_abs/$f" ]]; then
-      files+=("$proto_root/$f")
-      continue
-    fi
-    echo "proto файл не найден: $f (искали: $svc_abs/$f и $proto_root_abs/$f)"
+    echo "proto файл не найден: $f (искали: $proto_root_abs/$rel)"
     exit 2
   done
 else
   while IFS= read -r -d '' f; do
-    # Сохраняем путь относительно service root, чтобы protoc корректно применил source_relative.
-    rel="${f#$svc_abs/}"
+    # Сохраняем путь относительно proto-root, чтобы protoc корректно применил source_relative.
+    rel="${f#$proto_root_abs/}"
     files+=("$rel")
   done < <(find "$proto_root_abs" -type f -name '*.proto' -print0 | sort -z)
 fi
@@ -114,11 +115,33 @@ if [[ ${#files[@]} -eq 0 ]]; then
   exit 2
 fi
 
+# Для многомодульного монорепо: генерируем в service-local папку,
+# но при этом переопределяем Go import path для каждого .proto через M-mapping,
+# чтобы каждый сервис имел свой независимый пакет generated-кода.
+mod_line="$(awk '$1=="module"{print $2; exit}' "$svc_abs/go.mod" | tr -d '\r')"
+if [[ -z "$mod_line" ]]; then
+  echo "Не смогли прочитать module path из $service/go.mod"
+  exit 2
+fi
+
+declare -a go_mappings=()
+while IFS= read -r -d '' f; do
+  rel="${f#$proto_root_abs/}"
+  dir="$(dirname "$rel")"
+  # ключ mapping должен совпадать с путём в import'ах proto (относительно proto-root)
+  go_mappings+=("--go_opt=M${rel}=${mod_line}/${go_out_rel}/${dir}")
+  go_mappings+=("--go-grpc_opt=M${rel}=${mod_line}/${go_out_rel}/${dir}")
+  if [[ "$with_gateway" -eq 1 ]]; then
+    go_mappings+=("--grpc-gateway_opt=M${rel}=${mod_line}/${go_out_rel}/${dir}")
+  fi
+done < <(find "$proto_root_abs" -type f -name '*.proto' -print0 | sort -z)
+
 cmd=(
   protoc
   -I "$proto_root_abs"
   --go_out "$svc_abs/$go_out_rel" --go_opt paths=source_relative
   --go-grpc_out "$svc_abs/$go_out_rel" --go-grpc_opt paths=source_relative
+  "${go_mappings[@]}"
 )
 
 if [[ "$with_gateway" -eq 1 ]]; then

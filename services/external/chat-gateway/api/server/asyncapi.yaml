@@ -1,0 +1,65 @@
+asyncapi: 3.0.0
+info:
+  title: Chat Gateway AsyncAPI
+  version: 1.0.0
+  description: WebSocket контракт для real-time обновлений чата.
+
+servers:
+  publicWs:
+    host: "{host}"
+    protocol: wss
+    pathname: /ws
+    variables:
+      host:
+        default: example.com
+
+channels:
+  /ws:
+    address: /ws
+    messages:
+      messageCreated:
+        name: message.created
+        payload:
+          $ref: "#/components/schemas/MessageCreated"
+      messageDeleted:
+        name: message.deleted
+        payload:
+          $ref: "#/components/schemas/MessageDeleted"
+
+operations:
+  receiveEvents:
+    action: receive
+    channel:
+      $ref: "#/channels/~1ws"
+    messages:
+      - $ref: "#/channels/~1ws/messages/messageCreated"
+      - $ref: "#/channels/~1ws/messages/messageDeleted"
+
+components:
+  schemas:
+    Message:
+      type: object
+      additionalProperties: false
+      required: [id, user_id, text, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        user_id: { type: integer, format: int64 }
+        text: { type: string }
+        created_at: { type: string, format: date-time }
+        deleted_at: { type: string, format: date-time, nullable: true }
+
+    MessageCreated:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message: { $ref: "#/components/schemas/Message" }
+
+    MessageDeleted:
+      type: object
+      additionalProperties: false
+      required: [message_id, deleted_at]
+      properties:
+        message_id: { type: integer, format: int64 }
+        deleted_at: { type: string, format: date-time }
+

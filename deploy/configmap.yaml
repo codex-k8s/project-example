@@ -27,6 +27,6 @@ metadata:
   name: db-config
   namespace: {{ .Namespace }}
 data:
-  POSTGRES_DB: "chat"
   POSTGRES_HOST: "{{ $dbHost }}"
   POSTGRES_PORT: "5432"
+  POSTGRES_MAINT_DB: "postgres"

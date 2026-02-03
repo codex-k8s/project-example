@@ -1,0 +1,6 @@
+-- name: messages__soft_delete :one
+UPDATE messages
+SET deleted_at = now()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, deleted_at;
+

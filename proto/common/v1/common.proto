@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/codex-k8s/project-example/proto/common/v1;commonv1";
+
+// Общие транспортные типы (не домен).
+// Доменные модели живут в internal/domain/types/* и маппятся на границе.
+
+message Empty {}
+

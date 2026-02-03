@@ -1,0 +1,134 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"time"
+
+	"github.com/codex-k8s/project-example/libs/go/common/grpcx"
+	"github.com/codex-k8s/project-example/libs/go/common/logger"
+	"github.com/codex-k8s/project-example/libs/go/common/otel"
+	"github.com/codex-k8s/project-example/libs/go/common/postgresx"
+	"github.com/codex-k8s/project-example/libs/go/common/shutdown"
+	usersvc "github.com/codex-k8s/project-example/services/internal/users/internal/domain/service"
+	userrepo "github.com/codex-k8s/project-example/services/internal/users/internal/repository/postgres/user"
+	grpcsvc "github.com/codex-k8s/project-example/services/internal/users/internal/transport/grpc"
+	grpcmw "github.com/codex-k8s/project-example/services/internal/users/internal/transport/grpc/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+)
+
+func Run(ctx context.Context) error {
+	cfg, err := LoadConfig()
+	if err != nil {
+		return err
+	}
+
+	log := logger.New(cfg.ServiceName)
+
+	otelShutdown, err := otel.Init(ctx, otel.ConfigFromEnv(cfg.ServiceName), log)
+	if err != nil {
+		log.Error("otel init failed", "err", err)
+		return err
+	}
+
+	pgCfg, err := postgresx.ConfigFromEnv()
+	if err != nil {
+		log.Error("postgres config failed", "err", err)
+		return err
+	}
+	pool, err := postgresx.Connect(ctx, pgCfg)
+	if err != nil {
+		log.Error("postgres connect failed", "err", err)
+		return err
+	}
+
+	repo := userrepo.New(pool)
+	svc := usersvc.New(repo)
+
+	grpcLis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPCPort))
+	if err != nil {
+		log.Error("grpc listen failed", "err", err)
+		return err
+	}
+
+	grpcServer := grpcx.NewServer(
+		log,
+		[]grpc.UnaryServerInterceptor{
+			grpcmw.UnaryErrorBoundary(log),
+		},
+		nil,
+	)
+	grpcsvc.Register(grpcServer, svc)
+
+	httpSrv := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),
+		ReadHeaderTimeout: 5 * time.Second,
+		Handler:           http.NewServeMux(),
+	}
+	mux := httpSrv.Handler.(*http.ServeMux)
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/health/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	mux.HandleFunc("/health/readyz", func(w http.ResponseWriter, r *http.Request) {
+		c, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(c); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	serveErr := make(chan error, 2)
+	go func() {
+		log.Info("grpc server started", "port", cfg.GRPCPort)
+		if err := grpcServer.Serve(grpcLis); err != nil {
+			serveErr <- fmt.Errorf("grpc serve: %w", err)
+		}
+	}()
+	go func() {
+		log.Info("http server started", "port", cfg.HTTPPort)
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serveErr <- fmt.Errorf("http serve: %w", err)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		// graceful
+	case err := <-serveErr:
+		log.Error("server failed", "err", err)
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	log.Info("shutting down")
+	err = shutdown.Run(shutdownCtx,
+		func(ctx context.Context) error {
+			stopped := make(chan struct{})
+			go func() {
+				grpcServer.GracefulStop()
+				close(stopped)
+			}()
+			select {
+			case <-ctx.Done():
+				grpcServer.Stop()
+				return ctx.Err()
+			case <-stopped:
+				return nil
+			}
+		},
+		func(ctx context.Context) error { return httpSrv.Shutdown(ctx) },
+		func(context.Context) error { pool.Close(); return nil },
+		otelShutdown,
+	)
+	if err != nil {
+		logger.WithContext(ctx, log).Error("shutdown finished with error", "err", err)
+		return err
+	}
+	log.Info("shutdown complete")
+	return nil
+}

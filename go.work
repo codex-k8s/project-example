@@ -1,0 +1,9 @@
+go 1.25.1
+
+use (
+	./libs/go/common
+	./services/external/chat-gateway
+	./services/internal/messages
+	./services/internal/users
+	./services/jobs/messages-cleaner
+)

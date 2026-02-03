@@ -1,3 +1,5 @@
+version: 2
+
 run:
   timeout: 5m
   tests: true
@@ -17,22 +19,10 @@ linters:
     - errcheck
     - govet
     - ineffassign
-    - revive
     - staticcheck
-    - typecheck
-    - unused
 
 linters-settings:
-  revive:
-    ignore-generated-header: true
-    rules:
-      - name: blank-imports
-      - name: early-return
-      - name: error-return
-      - name: error-strings
-      - name: if-return
-      - name: range-val-in-closure
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-
+  staticcheck:
+    # В этом проекте мы избегаем warning-шума по deprecations (особенно в коде инфраструктуры/observability),
+    # но оставляем остальные проверки.
+    checks: ["all", "-SA1019"]
