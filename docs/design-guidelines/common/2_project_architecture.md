@@ -55,7 +55,7 @@
 Правила:
 - Сервисы для сотрудников (VPN/SSO/IP allowlist и т.п.).
 - Обязательно: аудит действий; отдельные роли/права; отдельные маршруты/домены.
-- UI/приложения для сотрудников живут здес.
+- UI/приложения для сотрудников живут здесь.
 
 ### `services/jobs/`
 Правила:
@@ -64,7 +64,23 @@
 
 ### `services/dev/`
 Правила:
-- Только для разработки; не деплоятся в staging/prod; должны быть явно выключены через `services.yaml`. Используются в dev/AI-dev, например `dev-grpc-gateway` - доступ к grpc через `Swagger/OpenAPI`.
+- Только для разработки; не деплоятся в staging/prod; должны быть явно выключены через `services.yaml`.
+
+## Матрица размещения (что куда класть)
+
+| Артефакт | Где живёт | Примечания |
+|---|---|---|
+| Go доменный сервис (core) | `services/internal/*` | Внутренний gRPC/queue; без публичного ingress. |
+| Go edge/BFF/gateway | `services/external/*` или `services/staff/*` | Внешний HTTP/WS; внутрь — gRPC. |
+| Frontend (public) | `services/external/*` | Vue 3 + TS + Pinia + Axios + Vite(+PWA) + i18n/router/cookies. |
+| Frontend (staff/admin) | `services/staff/*` | То же, но для сотрудников/админки. |
+| Jobs/воркеры/cron | `services/jobs/*` | Без публичного API; идемпотентность и ретраи обязательны. |
+| Dev-only сервисы/утилиты | `services/dev/*` | Только dev; должны быть выключены в staging/prod через `services.yaml`. |
+| Go доменные модели/порты | `services/*/*/internal/domain/*` | Доменные модели отдельно от транспорта; маппинг на границе. |
+| Go repo реализация (Postgres) | `services/*/*/internal/repository/postgres/*` | SQL только в `.sql` + `//go:embed`. |
+| HTTP контракт (OpenAPI) | `services/*/*/api/server/api.yaml` | Для `external|staff`; валидация в Go через `github.com/getkin/kin-openapi`. |
+| WS/async контракт (AsyncAPI) | `services/*/*/api/server/asyncapi.yaml` | Для WebSocket/async сообщений, если используется. |
+| Общие библиотеки | `libs/{go,vue,ts,js}/*` | Только реально переиспользуемое; без доменной логики конкретного продукта. |
 
 ## Границы сервисов и разделение ответственности
 

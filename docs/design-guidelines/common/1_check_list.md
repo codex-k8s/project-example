@@ -1,6 +1,8 @@
 # Общий чек-лист перед PR (обязателен для ИИ-агента)
 
-Этот чек-лист проверяет соответствие всем правилам из `docs/design-guidelines/**.md` (включая `docs/design-guidelines/error_handling/**.md`).
+Этот чек-лист проверяет соответствие всем правилам из `docs/design-guidelines/{common,go,vue}/*.md`.
+Чек лист используется как self-check перед созданием PR, отмечать в этом файле не нужно, как и дублировать чек-лист в PR/описание задачи.
+Достаточно в PR/описании задачи указать, что чек-лист выполнен, сколько пунктов релевантно и что все они выполнены.
 
 ## Self-check перед PR
 - [ ] Не размыты доменные границы: один сервис = один bounded context; нет “service-олигарха”; edge (`external|staff`) остаётся thin-edge.
@@ -49,6 +51,18 @@
 - [ ] Интерфейсы repo: `internal/domain/repository/<model>/repository.go`; реализация: `internal/repository/postgres/<model>/repository.go`.
 - [ ] Все SQL: `internal/repository/postgres/<model>/sql/*.sql` (по файлу на запрос), подключение только `//go:embed`, без SQL-строк в Go.
 - [ ] SQL имеет имена `-- name: <model>__<operation> :one|:many|:exec`; сложные запросы допускают шаблонизацию в `.sql` с явными параметрами.
+
+## Frontend (Vue) (если затрагивается)
+- [ ] Используется стек: Vue 3 + TypeScript + Pinia + Axios + Vite (`@vitejs/plugin-vue`) + `vite-plugin-pwa` + `vue-router` + `vue-i18n` + `vue3-cookies`.
+- [ ] Приложение лежит в правильной зоне: `services/external/*` (public) или `services/staff/*` (staff/admin).
+- [ ] Структура `src/` выдержана: `src/app`, `src/router`, `src/i18n`, `src/shared/{api,ui,lib}`, `src/features`, `src/pages` (и опц. `src/widgets`).
+- [ ] HTTP: нет прямых вызовов `axios` из компонентов/страниц; есть единый axios instance + интерсепторы + нормализация ошибок в `shared/api`.
+- [ ] Ошибки: UI не показывает сырые сообщения backend; ошибки маппятся в безопасные i18n ключи; отмена запросов не считается UI ошибкой.
+- [ ] Pinia: store по фичам; side-effects в actions/feature services; нет “одного глобального store на всё”.
+- [ ] i18n: UI тексты через ключи; форматирование централизовано.
+- [ ] Cookies: доступ через единый адаптер/обёртку; нет “магических строк” и утечки чувствительных данных.
+- [ ] PWA: кеширование не ломает auth и не выдаёт устаревшие API данные как актуальные; предусмотрен UX обновления версии.
+- [ ] Если код нужен >= 2 приложениям — он вынесен в `libs/{vue|ts|js}` (без доменной бизнес-логики приложения).
 
 ## Комментарии (если затрагивается Go-код)
 - [ ] Комментарии на английском (если не публичная внешняя библиотека).
