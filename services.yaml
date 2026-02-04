@@ -157,8 +157,8 @@ versions:
   debian-slim: "bookworm-slim"
   kubectl: "v1.34.1"
   protoc: "32.1"
-  yaml-mcp-server: "v0.1.0"
-  telegram-approver: "v0.1.0"
+  yaml-mcp-server: "latest"
+  telegram-approver: "latest"
 
 images:
   busybox:
