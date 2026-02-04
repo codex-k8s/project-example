@@ -32,16 +32,18 @@ spec:
               containerPort: 8080
           env:
             - name: YAML_MCP_LANG
-              value: "ru"
+              value: '{{ envOr "YAML_MCP_REVIEW_LANG" "ru" }}'
             - name: YAML_MCP_LOG_LEVEL
-              value: "info"
+              value: '{{ envOr "YAML_MCP_REVIEW_LOG_LEVEL" "info" }}'
             - name: YAML_MCP_GITHUB_REPO
-              value: '{{ envOr "YAML_MCP_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
-            - name: CODEXCTL_GH_PAT
+              value: '{{ envOr "YAML_MCP_REVIEW_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
+            - name: YAML_MCP_GH_USERNAME
+              value: '{{ envOr "YAML_MCP_REVIEW_GH_USERNAME" "" }}'
+            - name: YAML_MCP_GH_PAT
               valueFrom:
                 secretKeyRef:
                   name: yaml-mcp-github-review-secrets
-                  key: CODEXCTL_GH_PAT
+                  key: YAML_MCP_GH_PAT
           readinessProbe:
             httpGet:
               path: /readyz

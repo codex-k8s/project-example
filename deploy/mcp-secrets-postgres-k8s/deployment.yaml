@@ -32,18 +32,20 @@ spec:
               containerPort: 8080
           env:
             - name: YAML_MCP_LANG
-              value: "ru"
+              value: '{{ envOr "YAML_MCP_SECRETS_LANG" "ru" }}'
             - name: YAML_MCP_LOG_LEVEL
-              value: "info"
+              value: '{{ envOr "YAML_MCP_SECRETS_LOG_LEVEL" "info" }}'
             - name: YAML_MCP_GITHUB_REPO
-              value: '{{ envOr "YAML_MCP_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
-            - name: APPROVER_URL
-              value: '{{ envOr "APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
-            - name: CODEXCTL_GH_PAT
+              value: '{{ envOr "YAML_MCP_SECRETS_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
+            - name: YAML_MCP_APPROVER_URL
+              value: '{{ envOr "YAML_MCP_SECRETS_APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
+            - name: YAML_MCP_POSTGRES_POD_SELECTOR
+              value: '{{ envOr "YAML_MCP_SECRETS_POSTGRES_POD_SELECTOR" "" }}'
+            - name: YAML_MCP_GH_PAT
               valueFrom:
                 secretKeyRef:
                   name: yaml-mcp-secrets-postgres-k8s-secrets
-                  key: CODEXCTL_GH_PAT
+                  key: YAML_MCP_GH_PAT
           readinessProbe:
             httpGet:
               path: /readyz

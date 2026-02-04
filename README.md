@@ -27,8 +27,20 @@
 - `configs/github_secrets_postgres_k8s.yaml`
 - `configs/github_review.yaml`
 
-Для работы требуется `CODEXCTL_GH_PAT` (GitHub token) и `YAML_MCP_GITHUB_REPO` (owner/repo).
 Вся конфигурация MCP и tool‑описания находятся в `services.yaml` в секции `codex.mcp.servers`.
+
+### Переменные и секреты для GitHub
+
+Значения задаются в GitHub (Secrets/Variables) и подставляются в манифесты через `services.yaml`.
+
+**mcp-secrets-postgres-k8s**
+- Secrets: `YAML_MCP_SECRETS_GH_PAT`
+- Variables (опционально): `YAML_MCP_SECRETS_GITHUB_REPO`, `YAML_MCP_SECRETS_APPROVER_URL`, `YAML_MCP_SECRETS_LANG`, `YAML_MCP_SECRETS_LOG_LEVEL`, `YAML_MCP_SECRETS_POSTGRES_POD_SELECTOR`
+
+**mcp-github-review**
+- Secrets: `YAML_MCP_REVIEW_GH_PAT`
+- Variables: `YAML_MCP_REVIEW_GH_USERNAME` (обязательно)
+- Variables (опционально): `YAML_MCP_REVIEW_GITHUB_REPO`, `YAML_MCP_REVIEW_LANG`, `YAML_MCP_REVIEW_LOG_LEVEL`
 
 ## 1. Подготовка кластера (Ubuntu 24.04)
 
