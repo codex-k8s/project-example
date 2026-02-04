@@ -3,30 +3,30 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: yaml-mcp-server
+  name: yaml-mcp-github-review
   namespace: codex-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: yaml-mcp-server
+  name: yaml-mcp-github-review
   namespace: codex-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: yaml-mcp-server
+      app: yaml-mcp-github-review
   template:
     metadata:
       labels:
-        app: yaml-mcp-server
+        app: yaml-mcp-github-review
     spec:
-      serviceAccountName: yaml-mcp-server
+      serviceAccountName: yaml-mcp-github-review
       containers:
-        - name: yaml-mcp-server
+        - name: yaml-mcp-github-review
           image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
           imagePullPolicy: Always
-          args: ["--embedded-config", "github_secrets_postgres_k8s.yaml"]
+          args: ["--embedded-config", "github_review.yaml"]
           ports:
             - name: http
               containerPort: 8080
@@ -37,12 +37,10 @@ spec:
               value: "info"
             - name: YAML_MCP_GITHUB_REPO
               value: '{{ envOr "YAML_MCP_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
-            - name: APPROVER_URL
-              value: '{{ envOr "APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
             - name: CODEXCTL_GH_PAT
               valueFrom:
                 secretKeyRef:
-                  name: yaml-mcp-server-secrets
+                  name: yaml-mcp-github-review-secrets
                   key: CODEXCTL_GH_PAT
           readinessProbe:
             httpGet:

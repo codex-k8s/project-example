@@ -37,6 +37,7 @@ codex:
     exec: "60m"
     rollout: "30m"
     deployWait: "5m"
+  reviewMCPEnabled: true
   mcp:
     servers:
       - name: context7
@@ -51,21 +52,56 @@ codex:
             envRef: CONTEXT7_API_KEY
           CONTEXT7_MCP_URL:
             value: "https://mcp.context7.com/mcp"
-      - name: yaml_mcp
+      - name: github_secrets_postgres_k8s_mcp
         type: cluster
-        description: "Approval‑gateway для опасных операций (GitHub secrets и создание БД PostgreSQL)."
+        description: "Approval‑gateway для опасных операций: GitHub secrets и создание БД PostgreSQL в Kubernetes."
         tool_timeout_sec: 3600
         service:
-          name: yaml-mcp-server
+          name: yaml-mcp-secrets-postgres-k8s
           namespace: codex-system
           port: 8080
           path: /mcp
           scheme: http
         tools:
-          - name: yaml_mcp_create_github_secret_k8s
-            description: "Безопасное создание GitHub Secret и запись его в K8s Secret."
-          - name: yaml_mcp_create_psql_db_k8s
+          - name: github_create_env_secret_k8s
+            description: "Создание GitHub environment secret и запись его в K8s Secret."
+          - name: k8s_create_postgres_db
             description: "Создание БД в Postgres по именам секретов в K8s в указанном namespace."
+      - name: github_review_mcp
+        type: cluster
+        description: "Детерминированные ответы на review‑комментарии и вопросы в PR."
+        tool_timeout_sec: 600
+        service:
+          name: yaml-mcp-github-review
+          namespace: codex-system
+          port: 8080
+          path: /mcp
+          scheme: http
+        tools:
+          - name: github_pr_context
+            description: "Краткий контекст PR (title/body/refs/labels)."
+          - name: github_review_list_threads
+            description: "Список нерешённых review‑тредов."
+          - name: github_review_get_thread
+            description: "Детали review‑треда по thread_id."
+          - name: github_review_reply_thread
+            description: "Ответ в review‑тред с авто‑цитатой."
+          - name: github_review_resolve_thread
+            description: "Пометить review‑тред решённым."
+          - name: github_pr_list_issue_comments
+            description: "Список комментариев в PR conversation."
+          - name: github_pr_add_comment
+            description: "Добавить комментарий в PR conversation."
+          - name: github_pr_update_body
+            description: "Полная перезапись PR body."
+          - name: github_issue_update_body
+            description: "Полная перезапись Issue body."
+          - name: github_pr_set_labels
+            description: "Установить семантические лейблы PR (feature/bug/doc/debt/idea/epic)."
+          - name: github_search_issues
+            description: "Поиск задач и PR в репозитории."
+          - name: github_ask_question
+            description: "Задать уточняющий вопрос в Issue или PR."
 
 namespace:
   patterns:
@@ -207,7 +243,7 @@ images:
     type: build
     repository: '{{ $registryHost }}/project-example/platform/yaml-mcp-server'
     tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "yaml-mcp-server") }}'
-    dockerfile: 'deploy/mcp/Dockerfile'
+    dockerfile: 'deploy/mcp-secrets-postgres-k8s/Dockerfile'
     context: '.'
     buildArgs:
       GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
@@ -262,13 +298,20 @@ infrastructure:
     manifests:
       - path: deploy/dns.configmap.yaml
 
-  - name: mcp
+  - name: mcp-secrets-postgres-k8s
     when: '{{ eq .Env "ai-staging" }}'
     manifests:
-      - path: deploy/mcp/secret.yaml
-      - path: deploy/mcp/rbac.yaml
-      - path: deploy/mcp/deployment.yaml
-      - path: deploy/mcp/service.yaml
+      - path: deploy/mcp-secrets-postgres-k8s/secret.yaml
+      - path: deploy/mcp-secrets-postgres-k8s/rbac.yaml
+      - path: deploy/mcp-secrets-postgres-k8s/deployment.yaml
+      - path: deploy/mcp-secrets-postgres-k8s/service.yaml
+
+  - name: mcp-github-review
+    when: '{{ eq .Env "ai-staging" }}'
+    manifests:
+      - path: deploy/mcp-github-review/secret.yaml
+      - path: deploy/mcp-github-review/deployment.yaml
+      - path: deploy/mcp-github-review/service.yaml
 
   - name: codex-ai-repair-rbac
     when: '{{ eq .Env "ai-repair" }}'

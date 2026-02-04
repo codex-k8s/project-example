@@ -15,6 +15,21 @@
   - восстановление стейджинга агентом по метке `[ai-repair]` (если что‑то сломалось);
   - review/fix по ревью PR.
 
+## MCP‑серверы (yaml-mcp-server)
+
+В `services.yaml` описаны два MCP‑сервера, которые подключаются к Codex:
+
+- `github_secrets_postgres_k8s_mcp` — approval‑gateway для операций с GitHub secrets и созданием БД PostgreSQL в Kubernetes.
+- `github_review_mcp` — детерминированная работа с review‑комментариями и вопросами в PR (list/reply/resolve).
+
+Оба сервера используют единый образ `yaml-mcp-server`, но разные встроенные конфиги:
+
+- `configs/github_secrets_postgres_k8s.yaml`
+- `configs/github_review.yaml`
+
+Для работы требуется `CODEXCTL_GH_PAT` (GitHub token) и `YAML_MCP_GITHUB_REPO` (owner/repo).
+Вся конфигурация MCP и tool‑описания находятся в `services.yaml` в секции `codex.mcp.servers`.
+
 ## 1. Подготовка кластера (Ubuntu 24.04)
 
 Примечание: в этом проекте self‑hosted runner работает только внутри Kubernetes.

@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: yaml-mcp-server
+  name: yaml-mcp-secrets-postgres-k8s
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -16,12 +16,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: yaml-mcp-server
+  name: yaml-mcp-secrets-postgres-k8s
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: yaml-mcp-server
+  name: yaml-mcp-secrets-postgres-k8s
 subjects:
   - kind: ServiceAccount
-    name: yaml-mcp-server
+    name: yaml-mcp-secrets-postgres-k8s
     namespace: codex-system

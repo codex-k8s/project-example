@@ -1,0 +1,58 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+{{- $tagEnv := ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: yaml-mcp-secrets-postgres-k8s
+  namespace: codex-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yaml-mcp-secrets-postgres-k8s
+  namespace: codex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yaml-mcp-secrets-postgres-k8s
+  template:
+    metadata:
+      labels:
+        app: yaml-mcp-secrets-postgres-k8s
+    spec:
+      serviceAccountName: yaml-mcp-secrets-postgres-k8s
+      containers:
+        - name: yaml-mcp-secrets-postgres-k8s
+          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
+          imagePullPolicy: Always
+          args: ["--embedded-config", "github_secrets_postgres_k8s.yaml"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: YAML_MCP_LANG
+              value: "ru"
+            - name: YAML_MCP_LOG_LEVEL
+              value: "info"
+            - name: YAML_MCP_GITHUB_REPO
+              value: '{{ envOr "YAML_MCP_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
+            - name: APPROVER_URL
+              value: '{{ envOr "APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
+            - name: CODEXCTL_GH_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: yaml-mcp-secrets-postgres-k8s-secrets
+                  key: CODEXCTL_GH_PAT
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
