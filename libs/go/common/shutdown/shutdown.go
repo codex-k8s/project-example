@@ -5,9 +5,10 @@ import (
 	"errors"
 )
 
+// Closer is a shutdown hook that must be safe to call during graceful termination.
 type Closer func(context.Context) error
 
-// Run выполняет close-функции в обратном порядке (LIFO), собирая ошибки в errors.Join.
+// Run executes closers in reverse order (LIFO) and joins errors via errors.Join.
 func Run(ctx context.Context, closers ...Closer) error {
 	var errs []error
 	for i := len(closers) - 1; i >= 0; i-- {

@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Config holds runtime configuration for the messages-cleaner job.
 type Config struct {
 	ServiceName string
 	// Target gRPC address of messages service, e.g. "messages:8080".
@@ -15,6 +16,7 @@ type Config struct {
 	OlderThan        time.Duration
 }
 
+// LoadConfig reads job configuration from env and validates it.
 func LoadConfig() (Config, error) {
 	name := strings.TrimSpace(os.Getenv("SERVICE_NAME"))
 	if name == "" {

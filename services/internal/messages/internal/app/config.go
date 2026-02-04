@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// Config holds runtime configuration for the messages service.
 type Config struct {
 	ServiceName string
 	GRPCPort    int
@@ -14,6 +15,7 @@ type Config struct {
 	EnvPrefix   string
 }
 
+// LoadConfig reads service configuration from env and validates it.
 func LoadConfig() (Config, error) {
 	name := strings.TrimSpace(os.Getenv("SERVICE_NAME"))
 	if name == "" {

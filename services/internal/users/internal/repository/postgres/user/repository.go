@@ -23,16 +23,19 @@ var sqlGetByUsername string
 //go:embed sql/get_user_by_id.sql
 var sqlGetByID string
 
+// Repo is a pgx-based implementation of the users repository port.
 type Repo struct {
 	pool *pgxpool.Pool
 }
 
+// New constructs Repo.
 func New(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool}
 }
 
 var _ userrepo.Repository = (*Repo)(nil)
 
+// Create inserts a new user.
 func (r *Repo) Create(ctx context.Context, u entity.User) (entity.User, error) {
 	row := r.pool.QueryRow(ctx, sqlCreateUser, u.Username, u.PasswordHash)
 	cr, ok := row.(pgx.CollectableRow)
@@ -51,10 +54,12 @@ func (r *Repo) Create(ctx context.Context, u entity.User) (entity.User, error) {
 	return out, nil
 }
 
+// GetByUsername returns a user by username.
 func (r *Repo) GetByUsername(ctx context.Context, username string) (entity.User, error) {
 	return r.getOne(ctx, sqlGetByUsername, []any{username}, username, "GetByUsername")
 }
 
+// GetByID returns a user by ID.
 func (r *Repo) GetByID(ctx context.Context, id int64) (entity.User, error) {
 	return r.getOne(ctx, sqlGetByID, []any{id}, id, "GetByID")
 }

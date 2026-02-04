@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// Run starts the messages service and blocks until ctx is cancelled or a server fails.
 func Run(ctx context.Context) (runErr error) {
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -34,6 +35,7 @@ func Run(ctx context.Context) (runErr error) {
 		if runErr == nil || didShutdown {
 			return
 		}
+		// Fail-fast cleanup: close already-opened resources on early return.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		_ = shutdown.Run(shutdownCtx, closers...)

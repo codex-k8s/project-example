@@ -13,13 +13,17 @@ import (
 	"github.com/codex-k8s/project-example/services/internal/messages/internal/domain/types/entity"
 )
 
+// EventType is a stable event name emitted by the messages service.
 type EventType string
 
 const (
+	// EventMessageCreated indicates a newly created message.
 	EventMessageCreated EventType = "message.created"
+	// EventMessageDeleted indicates a message has been deleted (soft-delete).
 	EventMessageDeleted EventType = "message.deleted"
 )
 
+// Event is a real-time event emitted by the messages service.
 type Event struct {
 	Type      EventType
 	Message   *entity.Message
@@ -27,6 +31,7 @@ type Event struct {
 	DeletedAt *time.Time
 }
 
+// Service implements messages use-cases and exposes an in-process pub/sub for events.
 type Service struct {
 	repo msgrepo.Repository
 
@@ -34,10 +39,12 @@ type Service struct {
 	subs map[chan Event]struct{}
 }
 
+// New constructs Service.
 func New(repo msgrepo.Repository) *Service {
 	return &Service{repo: repo, subs: make(map[chan Event]struct{})}
 }
 
+// CreateMessage creates a new message.
 func (s *Service) CreateMessage(ctx context.Context, userID int64, text string) (entity.Message, error) {
 	if userID <= 0 {
 		return entity.Message{}, errs.Validation{Field: "user_id", Msg: "invalid"}
@@ -59,6 +66,7 @@ func (s *Service) CreateMessage(ctx context.Context, userID int64, text string) 
 	return msg, nil
 }
 
+// DeleteMessage soft-deletes a message if userID is the owner.
 func (s *Service) DeleteMessage(ctx context.Context, userID, messageID int64) (entity.Message, error) {
 	if userID <= 0 {
 		return entity.Message{}, errs.Validation{Field: "user_id", Msg: "invalid"}
@@ -84,6 +92,7 @@ func (s *Service) DeleteMessage(ctx context.Context, userID, messageID int64) (e
 	return msg, nil
 }
 
+// ListRecent returns recent messages with a bounded limit.
 func (s *Service) ListRecent(ctx context.Context, limit int) ([]entity.Message, error) {
 	if limit <= 0 {
 		limit = 50
@@ -98,6 +107,7 @@ func (s *Service) ListRecent(ctx context.Context, limit int) ([]entity.Message, 
 	return out, nil
 }
 
+// PurgeOld soft-deletes messages created before olderThan.
 func (s *Service) PurgeOld(ctx context.Context, olderThan time.Time) ([]entity.Message, error) {
 	if olderThan.IsZero() {
 		return nil, errs.Validation{Field: "older_than", Msg: "required"}
@@ -113,6 +123,7 @@ func (s *Service) PurgeOld(ctx context.Context, olderThan time.Time) ([]entity.M
 	return out, nil
 }
 
+// Subscribe returns a channel of events; it is closed when ctx is cancelled.
 func (s *Service) Subscribe(ctx context.Context) <-chan Event {
 	ch := make(chan Event, 64)
 	s.mu.Lock()
@@ -137,7 +148,7 @@ func (s *Service) publish(evt Event) {
 		select {
 		case ch <- evt:
 		default:
-			// Не блокируем доменную операцию из-за медленного подписчика.
+			// Do not block domain operations on slow subscribers.
 		}
 	}
 }

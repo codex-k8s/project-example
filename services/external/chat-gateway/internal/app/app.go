@@ -25,6 +25,7 @@ import (
 	"github.com/swaggest/swgui/v5emb"
 )
 
+// Run starts the chat-gateway service and blocks until ctx is cancelled or the HTTP server fails.
 func Run(ctx context.Context) (runErr error) {
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -39,6 +40,7 @@ func Run(ctx context.Context) (runErr error) {
 		if runErr == nil || didShutdown {
 			return
 		}
+		// Fail-fast cleanup: close already-opened resources on early return.
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		_ = shutdown.Run(shutdownCtx, closers...)
@@ -86,7 +88,7 @@ func Run(ctx context.Context) (runErr error) {
 	hub := ws.NewHub(log)
 	wsHandler := ws.NewHandler(hub, auth, cfg.CookieName)
 
-	// Фоновая доставка событий из messages (gRPC stream) -> WS clients.
+	// Background fan-out: messages gRPC stream -> WebSocket clients.
 	go ws.ForwardEvents(ctx, log, chat, hub)
 
 	e := echo.New()

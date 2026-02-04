@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
+// Handler implements the generated OpenAPI server interface for chat-gateway.
 type Handler struct {
 	auth       *service.Auth
 	chat       *service.Chat
@@ -17,6 +18,7 @@ type Handler struct {
 	secure     bool
 }
 
+// NewHandler constructs Handler.
 func NewHandler(auth *service.Auth, chat *service.Chat, cookieName string, cookieTTL time.Duration, cookieSecure bool) *Handler {
 	return &Handler{
 		auth:       auth,
@@ -29,6 +31,7 @@ func NewHandler(auth *service.Auth, chat *service.Chat, cookieName string, cooki
 
 var _ generated.ServerInterface = (*Handler)(nil)
 
+// AuthRegister handles POST /auth/register.
 func (h *Handler) AuthRegister(c *echo.Context) error {
 	var body generated.AuthRegisterJSONRequestBody
 	if err := c.Bind(&body); err != nil {
@@ -44,6 +47,7 @@ func (h *Handler) AuthRegister(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, toHTTPUser(u))
 }
 
+// AuthLogin handles POST /auth/login.
 func (h *Handler) AuthLogin(c *echo.Context) error {
 	var body generated.AuthLoginJSONRequestBody
 	if err := c.Bind(&body); err != nil {
@@ -59,6 +63,7 @@ func (h *Handler) AuthLogin(c *echo.Context) error {
 	return c.JSON(http.StatusOK, toHTTPUser(u))
 }
 
+// AuthLogout handles POST /auth/logout.
 func (h *Handler) AuthLogout(c *echo.Context) error {
 	token := h.getSessionToken(c)
 	if err := h.auth.Logout(c.Request().Context(), token); err != nil {
@@ -68,6 +73,7 @@ func (h *Handler) AuthLogout(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// MessagesList handles GET /messages.
 func (h *Handler) MessagesList(c *echo.Context, params generated.MessagesListParams) error {
 	limit := 50
 	if params.Limit != nil {
@@ -85,6 +91,7 @@ func (h *Handler) MessagesList(c *echo.Context, params generated.MessagesListPar
 	return c.JSON(http.StatusOK, generated.ListMessagesResponse{Messages: out})
 }
 
+// MessagesCreate handles POST /messages.
 func (h *Handler) MessagesCreate(c *echo.Context) error {
 	token := h.getSessionToken(c)
 	userID, err := h.auth.RequireUserID(c.Request().Context(), token)
@@ -104,6 +111,7 @@ func (h *Handler) MessagesCreate(c *echo.Context) error {
 	return c.JSON(http.StatusCreated, toHTTPMessage(msg))
 }
 
+// MessagesDelete handles DELETE /messages/{id}.
 func (h *Handler) MessagesDelete(c *echo.Context, id int) error {
 	token := h.getSessionToken(c)
 	userID, err := h.auth.RequireUserID(c.Request().Context(), token)

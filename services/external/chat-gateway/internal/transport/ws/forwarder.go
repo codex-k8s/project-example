@@ -9,10 +9,10 @@ import (
 	"log/slog"
 )
 
-// ForwardEvents доставляет события из внутреннего сервиса сообщений (через доменный Chat.Subscribe)
-// в подключенных WebSocket-клиентов.
+// ForwardEvents fans out events from the internal messages service (via Chat.Subscribe)
+// to connected WebSocket clients.
 //
-// Это транспортный "мост": доменная логика остаётся в domain/service, здесь только orchestration.
+// This is a transport bridge: domain logic stays in domain/service; here we only orchestrate delivery.
 func ForwardEvents(ctx context.Context, log *slog.Logger, chat *service.Chat, hub *Hub) {
 	backoff := 1 * time.Second
 	for {
@@ -33,7 +33,7 @@ func ForwardEvents(ctx context.Context, log *slog.Logger, chat *service.Chat, hu
 			}
 			hub.Broadcast(ctx, b)
 		}
-		// stream завершился — попробуем переподключиться.
+		// Stream ended; retry with backoff.
 		time.Sleep(backoff)
 	}
 }

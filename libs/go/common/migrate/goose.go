@@ -11,25 +11,26 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// Config defines goose execution settings (when used as a library).
 type Config struct {
-	Driver       string // sql driver name (по умолчанию: "pgx")
-	Dir          string // directory with *.sql
-	Command      string // "up", "down", "status", ...
+	Driver       string // SQL driver name (default: "pgx").
+	Dir          string // Directory containing migration *.sql files.
+	Command      string // goose command: "up", "down", "status", ...
 	Verbose      bool
 	AllowMissing bool
 }
 
-// RunGoose запускает goose как библиотеку (без внешнего бинарника).
-// DSN должен быть полноценным (postgres://...).
+// RunGoose runs goose as a library (no external goose binary required).
+// dsn must be a full Postgres DSN (e.g. postgres://...).
 func RunGoose(ctx context.Context, dsn string, cfg Config, args ...string) error {
 	if cfg.Driver == "" {
 		cfg.Driver = "pgx"
 	}
 	if cfg.Dir == "" {
-		return fmt.Errorf("goose: Dir обязателен")
+		return fmt.Errorf("goose: Dir is required")
 	}
 	if cfg.Command == "" {
-		return fmt.Errorf("goose: Command обязателен")
+		return fmt.Errorf("goose: Command is required")
 	}
 
 	goose.SetVerbose(cfg.Verbose)
@@ -50,7 +51,7 @@ func RunGoose(ctx context.Context, dsn string, cfg Config, args ...string) error
 		return fmt.Errorf("goose: ping db: %w", err)
 	}
 
-	// Поддерживаем минимум команд, остальное - через goose.Run.
+	// Support "up" explicitly to allow graceful handling of "no migrations" when configured.
 	if strings.EqualFold(cfg.Command, "up") {
 		if err := goose.Up(db, dir); err != nil {
 			if cfg.AllowMissing && strings.Contains(strings.ToLower(err.Error()), "no migrations") {

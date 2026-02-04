@@ -12,14 +12,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Service implements users use-cases.
 type Service struct {
 	repo userrepo.Repository
 }
 
+// New constructs Service.
 func New(repo userrepo.Repository) *Service {
 	return &Service{repo: repo}
 }
 
+// Register creates a new user with a bcrypt-hashed password.
 func (s *Service) Register(ctx context.Context, username, password string) (entity.User, error) {
 	username = strings.TrimSpace(username)
 	if username == "" {
@@ -45,7 +48,7 @@ func (s *Service) Register(ctx context.Context, username, password string) (enti
 		PasswordHash: string(hash),
 	})
 	if err != nil {
-		// repo может вернуть Conflict, тогда пробрасываем как есть.
+		// Repo may return Conflict; bubble it up as-is.
 		var c errs.Conflict
 		if errors.As(err, &c) {
 			return entity.User{}, c
@@ -55,6 +58,7 @@ func (s *Service) Register(ctx context.Context, username, password string) (enti
 	return u, nil
 }
 
+// Authenticate verifies credentials and returns a user on success.
 func (s *Service) Authenticate(ctx context.Context, username, password string) (entity.User, error) {
 	username = strings.TrimSpace(username)
 	if username == "" {
@@ -68,7 +72,7 @@ func (s *Service) Authenticate(ctx context.Context, username, password string) (
 	if err != nil {
 		var nf errs.NotFound
 		if errors.As(err, &nf) {
-			// Не раскрываем, что пользователя не существует.
+			// Do not reveal whether the user exists.
 			return entity.User{}, errs.Unauthorized{Msg: "invalid credentials"}
 		}
 		return entity.User{}, fmt.Errorf("get user by username: %w", err)
@@ -80,6 +84,7 @@ func (s *Service) Authenticate(ctx context.Context, username, password string) (
 	return u, nil
 }
 
+// GetUser returns a user by ID.
 func (s *Service) GetUser(ctx context.Context, id int64) (entity.User, error) {
 	if id <= 0 {
 		return entity.User{}, errs.Validation{Field: "id", Msg: "invalid"}

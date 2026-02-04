@@ -7,11 +7,13 @@ import (
 	"github.com/codex-k8s/project-example/services/external/chat-gateway/internal/domain/service"
 )
 
+// Envelope is the WebSocket message envelope (type + payload).
 type Envelope struct {
 	Type    string `json:"type"`
 	Payload any    `json:"payload"`
 }
 
+// EncodeEvent converts a domain event into a JSON-encoded WebSocket message.
 func EncodeEvent(e service.Event) ([]byte, error) {
 	switch e.Type {
 	case service.EventMessageCreated:

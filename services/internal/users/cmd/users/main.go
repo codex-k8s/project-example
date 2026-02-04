@@ -27,7 +27,7 @@ func main() {
 	}()
 
 	if err := app.Run(ctx); err != nil {
-		// Логирование делается внутри app (граница); тут только exit-code.
+		// Logging happens inside the app boundary; this main only returns an exit code.
 		os.Exit(1)
 	}
 }

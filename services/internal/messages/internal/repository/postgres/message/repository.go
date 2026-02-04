@@ -29,10 +29,12 @@ var sqlListRecent string
 //go:embed sql/purge_old_messages.sql
 var sqlPurgeOld string
 
+// Repo is a pgx-based implementation of the messages repository port.
 type Repo struct {
 	pool *pgxpool.Pool
 }
 
+// New constructs Repo.
 func New(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
 
 var _ msgrepo.Repository = (*Repo)(nil)
@@ -47,6 +49,7 @@ type deleteRow struct {
 	DeletedAt time.Time `db:"deleted_at"`
 }
 
+// Create inserts a new message and returns the stored row.
 func (r *Repo) Create(ctx context.Context, msg entity.Message) (entity.Message, error) {
 	row := r.pool.QueryRow(ctx, sqlCreate, msg.UserID, msg.Text)
 	cr, ok := row.(pgx.CollectableRow)
@@ -60,6 +63,7 @@ func (r *Repo) Create(ctx context.Context, msg entity.Message) (entity.Message, 
 	return out, nil
 }
 
+// SoftDelete soft-deletes a message if userID is the owner.
 func (r *Repo) SoftDelete(ctx context.Context, userID, messageID int64) (entity.Message, error) {
 	row := r.pool.QueryRow(ctx, sqlGetByID, messageID)
 	cr, ok := row.(pgx.CollectableRow)
@@ -96,6 +100,7 @@ func (r *Repo) SoftDelete(ctx context.Context, userID, messageID int64) (entity.
 	return out, nil
 }
 
+// ListRecent returns recent messages.
 func (r *Repo) ListRecent(ctx context.Context, limit int) ([]entity.Message, error) {
 	rows, err := r.pool.Query(ctx, sqlListRecent, limit)
 	if err != nil {
@@ -110,6 +115,7 @@ func (r *Repo) ListRecent(ctx context.Context, limit int) ([]entity.Message, err
 	return out, nil
 }
 
+// PurgeOld soft-deletes messages created before olderThan.
 func (r *Repo) PurgeOld(ctx context.Context, olderThan time.Time) ([]entity.Message, error) {
 	rows, err := r.pool.Query(ctx, sqlPurgeOld, olderThan)
 	if err != nil {

@@ -11,15 +11,18 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Server implements the generated MessagesService gRPC server.
 type Server struct {
 	grpcgen.UnimplementedMessagesServiceServer
 	svc *msgsvc.Service
 }
 
+// Register registers the gRPC server implementation.
 func Register(s *grpc.Server, svc *msgsvc.Service) {
 	grpcgen.RegisterMessagesServiceServer(s, &Server{svc: svc})
 }
 
+// CreateMessage handles MessagesService.CreateMessage.
 func (s *Server) CreateMessage(ctx context.Context, req *grpcgen.CreateMessageRequest) (*grpcgen.CreateMessageResponse, error) {
 	msg, err := s.svc.CreateMessage(ctx, req.GetUserId(), req.GetText())
 	if err != nil {
@@ -28,6 +31,7 @@ func (s *Server) CreateMessage(ctx context.Context, req *grpcgen.CreateMessageRe
 	return &grpcgen.CreateMessageResponse{Message: toProtoMessage(msg)}, nil
 }
 
+// DeleteMessage handles MessagesService.DeleteMessage.
 func (s *Server) DeleteMessage(ctx context.Context, req *grpcgen.DeleteMessageRequest) (*grpcgen.DeleteMessageResponse, error) {
 	msg, err := s.svc.DeleteMessage(ctx, req.GetUserId(), req.GetMessageId())
 	if err != nil {
@@ -42,6 +46,7 @@ func (s *Server) DeleteMessage(ctx context.Context, req *grpcgen.DeleteMessageRe
 	}, nil
 }
 
+// ListMessages handles MessagesService.ListMessages.
 func (s *Server) ListMessages(ctx context.Context, req *grpcgen.ListMessagesRequest) (*grpcgen.ListMessagesResponse, error) {
 	msgs, err := s.svc.ListRecent(ctx, int(req.GetLimit()))
 	if err != nil {
@@ -54,6 +59,7 @@ func (s *Server) ListMessages(ctx context.Context, req *grpcgen.ListMessagesRequ
 	return &grpcgen.ListMessagesResponse{Messages: out}, nil
 }
 
+// PurgeOldMessages handles MessagesService.PurgeOldMessages.
 func (s *Server) PurgeOldMessages(ctx context.Context, req *grpcgen.PurgeOldMessagesRequest) (*grpcgen.PurgeOldMessagesResponse, error) {
 	ts := req.GetOlderThan()
 	if ts == nil {
@@ -78,6 +84,7 @@ func (s *Server) PurgeOldMessages(ctx context.Context, req *grpcgen.PurgeOldMess
 	return &grpcgen.PurgeOldMessagesResponse{Deleted: out}, nil
 }
 
+// SubscribeEvents handles MessagesService.SubscribeEvents (server-side streaming).
 func (s *Server) SubscribeEvents(req *grpcgen.SubscribeEventsRequest, stream grpcgen.MessagesService_SubscribeEventsServer) error {
 	_ = req
 	ch := s.svc.Subscribe(stream.Context())

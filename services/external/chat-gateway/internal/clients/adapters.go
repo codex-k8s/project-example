@@ -25,10 +25,12 @@ type UsersAdapter struct {
 	c usergen.UsersServiceClient
 }
 
+// NewUsersAdapter constructs a UsersAdapter.
 func NewUsersAdapter(c usergen.UsersServiceClient) *UsersAdapter { return &UsersAdapter{c: c} }
 
 var _ domain.UsersAPI = (*UsersAdapter)(nil)
 
+// Register calls UsersService.Register and maps transport errors to gateway domain errors.
 func (a *UsersAdapter) Register(ctx context.Context, username, password string) (domain.User, error) {
 	resp, err := a.c.Register(ctx, &usergen.RegisterRequest{Username: username, Password: password})
 	if err != nil {
@@ -37,6 +39,7 @@ func (a *UsersAdapter) Register(ctx context.Context, username, password string) 
 	return fromProtoUser(resp.GetUser()), nil
 }
 
+// Authenticate calls UsersService.Authenticate and maps transport errors to gateway domain errors.
 func (a *UsersAdapter) Authenticate(ctx context.Context, username, password string) (domain.User, error) {
 	resp, err := a.c.Authenticate(ctx, &usergen.AuthenticateRequest{Username: username, Password: password})
 	if err != nil {
@@ -45,6 +48,7 @@ func (a *UsersAdapter) Authenticate(ctx context.Context, username, password stri
 	return fromProtoUser(resp.GetUser()), nil
 }
 
+// GetUser calls UsersService.GetUser and maps transport errors to gateway domain errors.
 func (a *UsersAdapter) GetUser(ctx context.Context, id int64) (domain.User, error) {
 	resp, err := a.c.GetUser(ctx, &usergen.GetUserRequest{Id: id})
 	if err != nil {
@@ -58,12 +62,14 @@ type MessagesAdapter struct {
 	c msggen.MessagesServiceClient
 }
 
+// NewMessagesAdapter constructs a MessagesAdapter.
 func NewMessagesAdapter(c msggen.MessagesServiceClient) *MessagesAdapter {
 	return &MessagesAdapter{c: c}
 }
 
 var _ domain.MessagesAPI = (*MessagesAdapter)(nil)
 
+// Create calls MessagesService.CreateMessage and maps transport errors to gateway domain errors.
 func (a *MessagesAdapter) Create(ctx context.Context, userID int64, text string) (domain.Message, error) {
 	resp, err := a.c.CreateMessage(ctx, &msggen.CreateMessageRequest{UserId: userID, Text: text})
 	if err != nil {
@@ -72,6 +78,7 @@ func (a *MessagesAdapter) Create(ctx context.Context, userID int64, text string)
 	return fromProtoMessage(resp.GetMessage()), nil
 }
 
+// Delete calls MessagesService.DeleteMessage and maps transport errors to gateway domain errors.
 func (a *MessagesAdapter) Delete(ctx context.Context, userID, messageID int64) error {
 	_, err := a.c.DeleteMessage(ctx, &msggen.DeleteMessageRequest{UserId: userID, MessageId: messageID})
 	if err != nil {
@@ -80,6 +87,7 @@ func (a *MessagesAdapter) Delete(ctx context.Context, userID, messageID int64) e
 	return nil
 }
 
+// List calls MessagesService.ListMessages and maps transport errors to gateway domain errors.
 func (a *MessagesAdapter) List(ctx context.Context, limit int) ([]domain.Message, error) {
 	resp, err := a.c.ListMessages(ctx, &msggen.ListMessagesRequest{Limit: proto.Int32(int32(limit))})
 	if err != nil {
@@ -92,6 +100,7 @@ func (a *MessagesAdapter) List(ctx context.Context, limit int) ([]domain.Message
 	return out, nil
 }
 
+// Subscribe calls MessagesService.SubscribeEvents and converts the server stream into a buffered channel.
 func (a *MessagesAdapter) Subscribe(ctx context.Context) (<-chan domain.Event, error) {
 	stream, err := a.c.SubscribeEvents(ctx, &msggen.SubscribeEventsRequest{})
 	if err != nil {
@@ -128,10 +137,12 @@ type SessionsAdapter struct {
 	rdb *redis.Client
 }
 
+// NewSessionsAdapter constructs a SessionsAdapter.
 func NewSessionsAdapter(rdb *redis.Client) *SessionsAdapter { return &SessionsAdapter{rdb: rdb} }
 
 var _ domain.Sessions = (*SessionsAdapter)(nil)
 
+// Create creates a new session token and stores it in Redis with TTL.
 func (s *SessionsAdapter) Create(ctx context.Context, userID int64, ttl time.Duration) (string, error) {
 	if userID <= 0 {
 		return "", errs.Validation{Field: "user_id", Msg: "invalid"}
@@ -147,6 +158,7 @@ func (s *SessionsAdapter) Create(ctx context.Context, userID int64, ttl time.Dur
 	return token, nil
 }
 
+// GetUserID resolves a session token to the user ID.
 func (s *SessionsAdapter) GetUserID(ctx context.Context, token string) (int64, error) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -166,6 +178,7 @@ func (s *SessionsAdapter) GetUserID(ctx context.Context, token string) (int64, e
 	return uid, nil
 }
 
+// Delete removes a session token from Redis.
 func (s *SessionsAdapter) Delete(ctx context.Context, token string) error {
 	token = strings.TrimSpace(token)
 	if token == "" {

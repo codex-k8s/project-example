@@ -12,16 +12,19 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
+// Handler handles WebSocket upgrades and client lifecycle.
 type Handler struct {
 	hub        *Hub
 	auth       *service.Auth
 	cookieName string
 }
 
+// NewHandler constructs Handler.
 func NewHandler(hub *Hub, auth *service.Auth, cookieName string) *Handler {
 	return &Handler{hub: hub, auth: auth, cookieName: cookieName}
 }
 
+// Handle upgrades an HTTP request to a WebSocket connection.
 func (h *Handler) Handle(c *echo.Context) error {
 	token := ""
 	if ck, err := c.Cookie(h.cookieName); err == nil && ck != nil {
@@ -40,11 +43,11 @@ func (h *Handler) Handle(c *echo.Context) error {
 			if origin == "" {
 				return false
 			}
-			// По умолчанию: только HTTPS same-origin (клиенты ходят только по https/wss).
+			// Default: HTTPS same-origin only (clients are expected to use https/wss).
 			if origin == "https://"+r.Host {
 				return true
 			}
-			// Дополнительно можно разрешить явный allowlist (через env).
+			// Optional: explicit allowlist via env.
 			if raw := strings.TrimSpace(os.Getenv("WS_ALLOWED_ORIGINS")); raw != "" {
 				for _, v := range strings.Split(raw, ",") {
 					if strings.TrimSpace(v) == origin {
@@ -71,7 +74,7 @@ func (h *Handler) Handle(c *echo.Context) error {
 	go client.writePump(ctx)
 	client.readPump(ctx)
 
-	// Дадим writePump возможность отправить close frame.
+	// Give writePump a chance to send a close frame.
 	_ = conn.SetWriteDeadline(time.Now().Add(1 * time.Second))
 	return nil
 }

@@ -2,6 +2,7 @@ package entity
 
 import "time"
 
+// Message is a domain entity for a chat message.
 type Message struct {
 	ID        int64      `db:"id"`
 	UserID    int64      `db:"user_id"`

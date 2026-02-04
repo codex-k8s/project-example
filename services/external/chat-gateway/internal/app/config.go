@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Config holds runtime configuration for the chat-gateway service.
 type Config struct {
 	ServiceName string
 	HTTPPort    int
@@ -22,6 +23,7 @@ type Config struct {
 	EnvPrefix string
 }
 
+// LoadConfig reads service configuration from env and validates it.
 func LoadConfig() (Config, error) {
 	name := strings.TrimSpace(os.Getenv("SERVICE_NAME"))
 	if name == "" {
@@ -59,7 +61,7 @@ func LoadConfig() (Config, error) {
 	case "false", "0", "no":
 		secure = false
 	case "":
-		// В dev можно оставить не-secure, но по умолчанию лучше безопасно.
+		// In dev one could allow insecure cookies, but the default should be safe.
 	}
 
 	return Config{

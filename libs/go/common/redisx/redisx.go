@@ -10,12 +10,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// Config describes Redis connection settings.
 type Config struct {
 	Host     string
 	Port     int
 	Password string
 	DB       int
 }
+
+// ConfigFromEnv reads Redis config from env without any prefix.
+func ConfigFromEnv() (Config, error) { return ConfigFromEnvWithPrefix("") }
 
 // ConfigFromEnvWithPrefix reads env vars with a prefix first and falls back to
 // non-prefixed vars. Use it to keep per-service secrets isolated.
@@ -26,7 +30,7 @@ func ConfigFromEnvWithPrefix(prefix string) (Config, error) {
 	dbStr := strings.TrimSpace(env(prefix, "REDIS_DB"))
 
 	if host == "" || portStr == "" {
-		return Config{}, fmt.Errorf("redis config: REDIS_HOST/REDIS_PORT обязательны")
+		return Config{}, fmt.Errorf("redis config: REDIS_HOST/REDIS_PORT are required")
 	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -51,6 +55,7 @@ func env(prefix, key string) string {
 	return os.Getenv(key)
 }
 
+// Connect creates a Redis client and verifies connectivity via PING.
 func Connect(ctx context.Context, cfg Config) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),

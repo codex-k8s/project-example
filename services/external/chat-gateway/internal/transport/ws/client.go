@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Client represents a single WebSocket connection.
 type Client struct {
 	userID int64
 	conn   *websocket.Conn

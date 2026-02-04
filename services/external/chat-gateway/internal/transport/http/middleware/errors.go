@@ -12,14 +12,14 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-// ErrorHandler — единая граница: err -> HTTP status + контракт ошибки + логирование.
+// ErrorHandler is the single HTTP error boundary: it maps errors to status + safe payload and logs once.
 func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 	return func(c *echo.Context, err error) {
 		if r, ok := c.Response().(*echo.Response); ok && r.Committed {
 			return
 		}
 
-		// context отмена не считается "ошибкой".
+		// Context cancellation is not treated as an application error.
 		if errors.Is(err, context.Canceled) {
 			_ = c.NoContent(499) // 499 (nginx: client closed request)
 			return
@@ -35,7 +35,7 @@ func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 			return
 		}
 
-		// echo HTTPError (например, bind/json decode).
+		// echo HTTPError (e.g. bind/json decode).
 		var httpErr *echo.HTTPError
 		if errors.As(err, &httpErr) {
 			code := httpErr.Code
@@ -48,7 +48,7 @@ func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 			return
 		}
 
-		// Доменные ошибки gateway.
+		// Gateway domain errors.
 		var v errs.Validation
 		if errors.As(err, &v) {
 			_ = c.JSON(http.StatusBadRequest, map[string]any{"code": "validation_error", "message": "invalid request"})

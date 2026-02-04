@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Config describes Postgres connection settings.
 type Config struct {
 	Host     string
 	Port     int
@@ -18,6 +19,9 @@ type Config struct {
 	Password string
 	DB       string
 }
+
+// ConfigFromEnv reads Postgres config from env without any prefix.
+func ConfigFromEnv() (Config, error) { return ConfigFromEnvWithPrefix("") }
 
 // ConfigFromEnvWithPrefix reads env vars with a prefix first and falls back to
 // non-prefixed vars. This allows sharing host/port via ConfigMap while keeping
@@ -30,7 +34,7 @@ func ConfigFromEnvWithPrefix(prefix string) (Config, error) {
 	db := strings.TrimSpace(env(prefix, "POSTGRES_DB"))
 
 	if host == "" || portStr == "" || user == "" || db == "" {
-		return Config{}, fmt.Errorf("postgres config: POSTGRES_HOST/POSTGRES_PORT/POSTGRES_USER/POSTGRES_DB обязательны")
+		return Config{}, fmt.Errorf("postgres config: POSTGRES_HOST/POSTGRES_PORT/POSTGRES_USER/POSTGRES_DB are required")
 	}
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -48,11 +52,13 @@ func env(prefix, key string) string {
 	return os.Getenv(key)
 }
 
+// DSN returns a Postgres DSN compatible with pgx/stdlib.
 func (c Config) DSN() string {
-	// Внутри кластера обычно используем без TLS; если нужно иначе — расширим конфиг.
+	// Inside the cluster we typically use no TLS; extend config if required.
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", c.User, url.QueryEscape(c.Password), c.Host, c.Port, c.DB)
 }
 
+// Connect creates a pgx pool and verifies connectivity via Ping.
 func Connect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {

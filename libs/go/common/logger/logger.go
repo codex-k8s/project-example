@@ -9,7 +9,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// New создаёт JSON-логгер, добавляя имя сервиса и уровень (LOG_LEVEL=debug|info|warn|error).
+// New creates a JSON slog logger and adds a "service" field.
+// Log level is controlled via LOG_LEVEL=debug|info|warn|error.
 func New(service string) *slog.Logger {
 	level := slog.LevelInfo
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("LOG_LEVEL"))) {
@@ -31,7 +32,7 @@ func New(service string) *slog.Logger {
 	return log
 }
 
-// WithContext добавляет trace_id/span_id при наличии OTEL span context.
+// WithContext enriches log with trace/span IDs from the current OTEL span context (if present).
 func WithContext(ctx context.Context, log *slog.Logger) *slog.Logger {
 	if ctx == nil {
 		return log

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// UnaryErrorBoundary — единственная граница: error -> status + логирование.
+// UnaryErrorBoundary is the only boundary: it maps domain errors to gRPC status codes and logs once.
 func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		resp, err := handler(ctx, req)
@@ -20,7 +20,7 @@ func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 			return resp, nil
 		}
 
-		// Контекстные ошибки не логируем как error.
+		// Context errors are not logged as ERROR.
 		if errors.Is(err, context.Canceled) {
 			return nil, status.Error(codes.Canceled, "canceled")
 		}
@@ -28,7 +28,7 @@ func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
 		}
 
-		// Домен -> gRPC codes.
+		// Domain -> gRPC codes.
 		var v errs.Validation
 		if errors.As(err, &v) {
 			return nil, status.Error(codes.InvalidArgument, "validation error")
@@ -46,7 +46,7 @@ func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 			return nil, status.Error(codes.AlreadyExists, "conflict")
 		}
 
-		// Остальное = Internal.
+		// Everything else is Internal.
 		logger.WithContext(ctx, log).Error("grpc request failed", "method", info.FullMethod, "err", err)
 		return nil, status.Error(codes.Internal, "internal error")
 	}

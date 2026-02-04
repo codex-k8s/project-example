@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// UnaryErrorBoundary maps domain errors to gRPC status codes and logs once (unary RPC).
 func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		resp, err := handler(ctx, req)
@@ -22,6 +23,7 @@ func UnaryErrorBoundary(log *slog.Logger) grpc.UnaryServerInterceptor {
 	}
 }
 
+// StreamErrorBoundary maps domain errors to gRPC status codes and logs once (streaming RPC).
 func StreamErrorBoundary(log *slog.Logger) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, ss)

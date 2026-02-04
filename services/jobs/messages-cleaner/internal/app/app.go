@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Run executes one purge operation and returns an error on failure.
 func Run(ctx context.Context) error {
 	cfg, err := LoadConfig()
 	if err != nil {

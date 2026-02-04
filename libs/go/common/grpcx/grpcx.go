@@ -14,9 +14,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// NewServer создаёт gRPC server с базовыми interceptor'ами: recovery + OTEL.
-// Дополнительные interceptor'ы (например, error mapping) передаются отдельно и будут
-// выполнены *внутри* OTEL (чтобы OTEL увидел уже замаппленную ошибку/status).
+// NewServer creates a gRPC server with baseline defaults: panic recovery and OTEL instrumentation.
+//
+// Extra interceptors (e.g. error mapping) are executed inside OTEL instrumentation so spans can see
+// already-normalized status/errors.
 func NewServer(
 	log *slog.Logger,
 	unaryExtra []grpc.UnaryServerInterceptor,
@@ -42,6 +43,8 @@ func NewServer(
 	return grpc.NewServer(opts...)
 }
 
+// Dial establishes a client connection to target with OTEL instrumentation and waits until it is Ready.
+// This makes configuration errors (bad target/DNS) fail fast during init instead of on the first RPC.
 func Dial(ctx context.Context, target string, extra ...grpc.DialOption) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -53,8 +56,7 @@ func Dial(ctx context.Context, target string, extra ...grpc.DialOption) (*grpc.C
 		return nil, fmt.Errorf("grpc dial %q: %w", target, err)
 	}
 
-	// Явно дёргаем Connect + ждём готовности, чтобы ошибки "плохого target"
-	// проявлялись в месте инициализации, а не внутри первого RPC.
+	// Connect + wait for readiness so "bad target" errors surface during init.
 	cc.Connect()
 	for {
 		st := cc.GetState()
