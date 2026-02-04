@@ -11,6 +11,7 @@ import (
 	"github.com/codex-k8s/project-example/libs/go/common/otel"
 	"github.com/codex-k8s/project-example/libs/go/common/redisx"
 	"github.com/codex-k8s/project-example/libs/go/common/shutdown"
+	"github.com/codex-k8s/project-example/services/external/chat-gateway/internal/clients"
 	"github.com/codex-k8s/project-example/services/external/chat-gateway/internal/domain/service"
 	msggen "github.com/codex-k8s/project-example/services/external/chat-gateway/internal/transport/grpc/generated/messages/v1"
 	usergen "github.com/codex-k8s/project-example/services/external/chat-gateway/internal/transport/grpc/generated/users/v1"
@@ -75,9 +76,9 @@ func Run(ctx context.Context) (runErr error) {
 	}
 	closers = append(closers, func(context.Context) error { _ = msgCC.Close(); return nil })
 
-	users := NewUsersAdapter(usergen.NewUsersServiceClient(usersCC))
-	msgs := NewMessagesAdapter(msggen.NewMessagesServiceClient(msgCC))
-	sessions := NewSessionsAdapter(rdb)
+	users := clients.NewUsersAdapter(usergen.NewUsersServiceClient(usersCC))
+	msgs := clients.NewMessagesAdapter(msggen.NewMessagesServiceClient(msgCC))
+	sessions := clients.NewSessionsAdapter(rdb)
 
 	auth := service.NewAuth(users, sessions, cfg.CookieMaxAge)
 	chat := service.NewChat(msgs)

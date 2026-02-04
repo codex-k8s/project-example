@@ -61,6 +61,7 @@
 
 - `cmd/<service-name>/main.go` — тонкий вход.
 - `internal/app/` — composition root + graceful shutdown.
+- `internal/clients/` — клиенты/адаптеры к внешним зависимостям и другим сервисам (gRPC/HTTP/Redis/etc). Эти пакеты реализуют доменные порты и используются из `internal/app` (composition root).
 - `internal/transport/{http,grpc,ws}/` — handlers/registration без бизнес-логики.
 - `internal/transport/{http,grpc,ws}/middleware/` — middleware/interceptors, специфичные для сервиса (не из `libs/*`).
 - `internal/transport/helpers/` — неэкспортируемые helpers для транспорта.

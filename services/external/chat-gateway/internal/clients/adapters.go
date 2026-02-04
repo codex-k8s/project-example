@@ -1,4 +1,4 @@
-package app
+package clients
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// UsersAdapter implements domain.UsersAPI via gRPC.
 type UsersAdapter struct {
 	c usergen.UsersServiceClient
 }
@@ -52,6 +53,7 @@ func (a *UsersAdapter) GetUser(ctx context.Context, id int64) (domain.User, erro
 	return fromProtoUser(resp.GetUser()), nil
 }
 
+// MessagesAdapter implements domain.MessagesAPI via gRPC.
 type MessagesAdapter struct {
 	c msggen.MessagesServiceClient
 }
@@ -118,10 +120,10 @@ func (a *MessagesAdapter) Subscribe(ctx context.Context) (<-chan domain.Event, e
 			}
 		}
 	}()
-
 	return ch, nil
 }
 
+// SessionsAdapter implements domain.Sessions via Redis.
 type SessionsAdapter struct {
 	rdb *redis.Client
 }
