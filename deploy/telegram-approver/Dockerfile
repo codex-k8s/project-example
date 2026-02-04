@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
 
 RUN apt-get update -y \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 ARG TELEGRAM_APPROVER_VERSION=latest
