@@ -37,6 +37,35 @@ codex:
     exec: "60m"
     rollout: "30m"
     deployWait: "5m"
+  mcp:
+    servers:
+      - name: context7
+        type: stdio
+        description: "Context7 documentation lookup."
+        command: npx
+        args: ["-y", "@upstash/context7-mcp"]
+        startup_timeout_sec: 120
+        tool_timeout_sec: 120
+        env:
+          CONTEXT7_API_KEY:
+            envRef: CONTEXT7_API_KEY
+          CONTEXT7_MCP_URL:
+            value: "https://mcp.context7.com/mcp"
+      - name: yaml_mcp
+        type: cluster
+        description: "Approval-gated operations (GitHub secrets and PostgreSQL DB creation)."
+        tool_timeout_sec: 3600
+        service:
+          name: yaml-mcp-server
+          namespace: codex-system
+          port: 8080
+          path: /mcp
+          scheme: http
+        tools:
+          - name: yaml_mcp_create_github_secret_k8s
+            description: "Create GitHub environment secret and mirror it into a Kubernetes Secret."
+          - name: yaml_mcp_create_psql_db_k8s
+            description: "Create a PostgreSQL database using credentials stored in Kubernetes Secrets."
 
 namespace:
   patterns:
@@ -92,6 +121,7 @@ versions:
   debian-slim: "bookworm-slim"
   kubectl: "v1.34.1"
   protoc: "32.1"
+  yaml-mcp-server: "v0.1.0"
 
 images:
   busybox:
@@ -173,6 +203,16 @@ images:
       PROTOC_VERSION: '{{ index .Versions "protoc" }}'
       CODEX_IMAGE_VERSION: '{{ index .Versions "codex" }}'
       CODEXCTL_VERSION: '{{ index .Versions "codexctl" }}'
+  yaml-mcp-server:
+    type: build
+    repository: '{{ $registryHost }}/project-example/platform/yaml-mcp-server'
+    tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "yaml-mcp-server") }}'
+    dockerfile: 'deploy/mcp/Dockerfile'
+    context: '.'
+    buildArgs:
+      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
+      YAML_MCP_SERVER_VERSION: '{{ index .Versions "yaml-mcp-server" }}'
+      KUBECTL_VERSION: '{{ index .Versions "kubectl" }}'
 
 environments:
   dev:
@@ -221,6 +261,15 @@ infrastructure:
     when: '{{ eq .Env "ai-staging" }}'
     manifests:
       - path: deploy/dns.configmap.yaml
+
+  - name: mcp
+    when: '{{ eq .Env "ai-staging" }}'
+    manifests:
+      - path: deploy/mcp/configmap.yaml
+      - path: deploy/mcp/secret.yaml
+      - path: deploy/mcp/rbac.yaml
+      - path: deploy/mcp/deployment.yaml
+      - path: deploy/mcp/service.yaml
 
   - name: codex-ai-repair-rbac
     when: '{{ eq .Env "ai-repair" }}'

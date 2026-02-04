@@ -30,7 +30,7 @@ export CALICO_IPV4POOLS_JSON='["platform"]'
 apply_tpl "${ROOT_DIR}" "namespace-ingress.yaml.tpl"
 kubectl label namespace ingress scope=platform --overwrite
 
-platform_namespaces=(cert-manager longhorn-system velero actions-runner-system ingress-nginx)
+platform_namespaces=(cert-manager longhorn-system velero actions-runner-system ingress-nginx codex-system)
 if [[ "${ENABLE_METALLB}" == "true" ]]; then
   platform_namespaces+=(metallb-system)
 fi
@@ -92,5 +92,9 @@ while read -r ns; do
   export NS_NAME="${ns}"
   apply_tpl "${ROOT_DIR}" "netpol-env.yaml.tpl"
 done < <(env_namespaces)
+
+log "Apply NetworkPolicy for codex-system..."
+export NS_NAME="codex-system"
+apply_tpl "${ROOT_DIR}" "netpol-codex-system.yaml.tpl"
 
 log "Calico + networking done"

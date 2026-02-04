@@ -1,0 +1,65 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+{{- $tagEnv := ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: yaml-mcp-server
+  namespace: codex-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yaml-mcp-server
+  namespace: codex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yaml-mcp-server
+  template:
+    metadata:
+      labels:
+        app: yaml-mcp-server
+    spec:
+      serviceAccountName: yaml-mcp-server
+      containers:
+        - name: yaml-mcp-server
+          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: YAML_MCP_CONFIG
+              value: /etc/yaml-mcp-server/config.yaml
+            - name: YAML_MCP_LANG
+              value: "ru"
+            - name: YAML_MCP_LOG_LEVEL
+              value: "info"
+            - name: APPROVER_URL
+              value: '{{ envOr "APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
+            - name: CODEXCTL_GH_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: yaml-mcp-server-secrets
+                  key: CODEXCTL_GH_PAT
+          volumeMounts:
+            - name: config
+              mountPath: /etc/yaml-mcp-server
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: yaml-mcp-server-config
