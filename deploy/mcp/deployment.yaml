@@ -26,16 +26,17 @@ spec:
         - name: yaml-mcp-server
           image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
           imagePullPolicy: Always
+          args: ["--embedded-config", "github_secrets_postgres_k8s.yaml"]
           ports:
             - name: http
               containerPort: 8080
           env:
-            - name: YAML_MCP_CONFIG
-              value: /etc/yaml-mcp-server/config.yaml
             - name: YAML_MCP_LANG
               value: "ru"
             - name: YAML_MCP_LOG_LEVEL
               value: "info"
+            - name: YAML_MCP_GITHUB_REPO
+              value: '{{ envOr "YAML_MCP_GITHUB_REPO" (envOr "CODEXCTL_REPO" "") }}'
             - name: APPROVER_URL
               value: '{{ envOr "APPROVER_URL" "http://telegram-approver.codex-system.svc.cluster.local:8080/approve" }}'
             - name: CODEXCTL_GH_PAT
@@ -43,10 +44,6 @@ spec:
                 secretKeyRef:
                   name: yaml-mcp-server-secrets
                   key: CODEXCTL_GH_PAT
-          volumeMounts:
-            - name: config
-              mountPath: /etc/yaml-mcp-server
-              readOnly: true
           readinessProbe:
             httpGet:
               path: /readyz
@@ -59,7 +56,3 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-      volumes:
-        - name: config
-          configMap:
-            name: yaml-mcp-server-config

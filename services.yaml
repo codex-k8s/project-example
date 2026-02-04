@@ -53,7 +53,7 @@ codex:
             value: "https://mcp.context7.com/mcp"
       - name: yaml_mcp
         type: cluster
-        description: "Approval-gated operations (GitHub secrets and PostgreSQL DB creation)."
+        description: "Approval‑gateway для опасных операций (GitHub secrets и создание БД PostgreSQL)."
         tool_timeout_sec: 3600
         service:
           name: yaml-mcp-server
@@ -63,9 +63,9 @@ codex:
           scheme: http
         tools:
           - name: yaml_mcp_create_github_secret_k8s
-            description: "Create GitHub environment secret and mirror it into a Kubernetes Secret."
+            description: "Безопасное создание GitHub Secret и запись его в K8s Secret."
           - name: yaml_mcp_create_psql_db_k8s
-            description: "Create a PostgreSQL database using credentials stored in Kubernetes Secrets."
+            description: "Создание БД в Postgres по именам секретов в K8s в указанном namespace."
 
 namespace:
   patterns:
@@ -265,7 +265,6 @@ infrastructure:
   - name: mcp
     when: '{{ eq .Env "ai-staging" }}'
     manifests:
-      - path: deploy/mcp/configmap.yaml
       - path: deploy/mcp/secret.yaml
       - path: deploy/mcp/rbac.yaml
       - path: deploy/mcp/deployment.yaml

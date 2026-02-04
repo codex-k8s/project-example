@@ -34,6 +34,4 @@ RUN curl -fsSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VE
 ARG YAML_MCP_SERVER_VERSION=latest
 RUN GOBIN=/usr/local/bin go install github.com/codex-k8s/yaml-mcp-server/cmd/yaml-mcp-server@${YAML_MCP_SERVER_VERSION}
 
-ENV YAML_MCP_CONFIG=/etc/yaml-mcp-server/config.yaml
-
 ENTRYPOINT ["/usr/local/bin/yaml-mcp-server"]
