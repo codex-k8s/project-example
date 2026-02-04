@@ -1,5 +1,9 @@
 {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 {{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
+{{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
+{{- $workspaceMount := envOr "CODEXCTL_WORKSPACE_MOUNT" "/workspace" -}}
+{{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" (printf "%s/codex/envs" $workspaceMount) -}}
+{{- $codeRoot := ternary (eq .Env "ai") (printf "%s/%d/src" $codeRootBase .Slot) (ternary (or (eq .Env "ai-staging") (eq .Env "ai-repair")) (printf "%s/ai-staging/src" $codeRootBase) (printf "%s/dev/src" $codeRootBase)) -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,6 +11,7 @@ metadata:
   namespace: {{ .Namespace }}
 data:
   SERVICE_NAME: "messages-cleaner"
+  CODE_ROOT: "{{ $codeRoot }}"
   MESSAGES_GRPC_ADDR: "messages:8080"
   OLDER_THAN_SECONDS: "600"
   TZ: "UTC"
@@ -30,8 +35,14 @@ spec:
               command: ["sh", "-c", "until nc -zw1 messages 8080; do echo 'waiting for messages'; sleep 2; done"]
           containers:
             - name: messages-cleaner
-              image: {{ $registryHost }}/project-example/messages-cleaner:{{ $tagEnv }}-{{ index .Versions "messages-cleaner" }}
+              image: {{ $registryHost }}/project-example/jobs/messages-cleaner:{{ $tagEnv }}-{{ index .Versions "messages-cleaner" }}
               envFrom:
                 - configMapRef:
                     name: messages-cleaner-config
-
+              volumeMounts:
+                - name: workspace
+                  mountPath: {{ $workspaceMount }}
+          volumes:
+            - name: workspace
+              persistentVolumeClaim:
+                claimName: {{ $workspacePVC }}

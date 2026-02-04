@@ -17,11 +17,13 @@ type Config struct {
 	DB       int
 }
 
-func ConfigFromEnv() (Config, error) {
-	host := strings.TrimSpace(os.Getenv("REDIS_HOST"))
-	portStr := strings.TrimSpace(os.Getenv("REDIS_PORT"))
-	pass := os.Getenv("REDIS_PASSWORD")
-	dbStr := strings.TrimSpace(os.Getenv("REDIS_DB"))
+// ConfigFromEnvWithPrefix reads env vars with a prefix first and falls back to
+// non-prefixed vars. Use it to keep per-service secrets isolated.
+func ConfigFromEnvWithPrefix(prefix string) (Config, error) {
+	host := strings.TrimSpace(env(prefix, "REDIS_HOST"))
+	portStr := strings.TrimSpace(env(prefix, "REDIS_PORT"))
+	pass := env(prefix, "REDIS_PASSWORD")
+	dbStr := strings.TrimSpace(env(prefix, "REDIS_DB"))
 
 	if host == "" || portStr == "" {
 		return Config{}, fmt.Errorf("redis config: REDIS_HOST/REDIS_PORT обязательны")
@@ -38,6 +40,15 @@ func ConfigFromEnv() (Config, error) {
 		}
 	}
 	return Config{Host: host, Port: port, Password: pass, DB: db}, nil
+}
+
+func env(prefix, key string) string {
+	if prefix != "" {
+		if v, ok := os.LookupEnv(prefix + key); ok {
+			return v
+		}
+	}
+	return os.Getenv(key)
 }
 
 func Connect(ctx context.Context, cfg Config) (*redis.Client, error) {

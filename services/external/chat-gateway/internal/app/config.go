@@ -18,6 +18,8 @@ type Config struct {
 	CookieName   string
 	CookieMaxAge time.Duration
 	CookieSecure bool
+
+	EnvPrefix string
 }
 
 func LoadConfig() (Config, error) {
@@ -25,6 +27,8 @@ func LoadConfig() (Config, error) {
 	if name == "" {
 		name = "chat-gateway"
 	}
+
+	envPrefix := strings.TrimSpace(os.Getenv("ENV_PREFIX"))
 
 	httpPort, err := mustPort("HTTP_PORT", 8080)
 	if err != nil {
@@ -66,6 +70,7 @@ func LoadConfig() (Config, error) {
 		CookieName:       cookieName,
 		CookieMaxAge:     time.Duration(maxAgeSec) * time.Second,
 		CookieSecure:     secure,
+		EnvPrefix:        envPrefix,
 	}, nil
 }
 

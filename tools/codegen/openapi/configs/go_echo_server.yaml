@@ -5,9 +5,11 @@ output: internal/transport/http/generated/openapi.gen.go
 generate:
   echo-server: true
   models: true
-  # strict-server для Echo сейчас выключен, потому что oapi-codegen runtime strictmiddleware/echo
-  # использует echo/v4, а у нас стандартный сервер — echo/v5.
-  # Если понадобится строгий server, нужно будет добавить свои v5 strict-middleware + override шаблонов.
+  # strict-server включает генерацию строгого server wrapper (типизированные request/response структуры
+  # и строгую проверку соответствия хендлеров контракту).
+  #
+  # Для Echo v5 оставляем false, т.к. стандартный strictmiddleware у oapi-codegen ориентирован на echo/v4.
+  # Строгую проверку контракта на входе обеспечиваем kin-openapi middleware (см. docs/design-guidelines/go/rest.md).
   strict-server: false
   embedded-spec: false
 

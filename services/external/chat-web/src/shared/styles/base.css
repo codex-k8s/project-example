@@ -1,0 +1,24 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--c-text);
+  background:
+    radial-gradient(900px 600px at 15% 10%, rgba(56, 189, 248, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 80% 20%, rgba(167, 139, 250, 0.16), transparent 55%),
+    radial-gradient(1000px 800px at 50% 120%, rgba(56, 189, 248, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--c-bg0), var(--c-bg1));
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+

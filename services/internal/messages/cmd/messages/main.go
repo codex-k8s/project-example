@@ -10,8 +10,21 @@ import (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	sigCh := make(chan os.Signal, 2)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP)
+	defer func() {
+		signal.Stop(sigCh)
+		cancel()
+	}()
+
+	go func() {
+		<-sigCh
+		cancel()
+		<-sigCh
+		os.Exit(2)
+	}()
 
 	if err := app.Run(ctx); err != nil {
 		os.Exit(1)

@@ -1,5 +1,9 @@
 {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 {{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
+{{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
+{{- $workspaceMount := envOr "CODEXCTL_WORKSPACE_MOUNT" "/workspace" -}}
+{{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" (printf "%s/codex/envs" $workspaceMount) -}}
+{{- $codeRoot := ternary (eq .Env "ai") (printf "%s/%d/src" $codeRootBase .Slot) (ternary (or (eq .Env "ai-staging") (eq .Env "ai-repair")) (printf "%s/ai-staging/src" $codeRootBase) (printf "%s/dev/src" $codeRootBase)) -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,7 +13,9 @@ data:
   SERVICE_NAME: "messages"
   GRPC_PORT: "8080"
   HTTP_PORT: "8081"
-  POSTGRES_DB: "messages"
+  CODE_ROOT: "{{ $codeRoot }}"
+  ENV_PREFIX: "MESSAGES_"
+  MESSAGES_POSTGRES_DB: "messages"
   TZ: "UTC"
 ---
 apiVersion: apps/v1
@@ -51,13 +57,17 @@ spec:
             - sh
             - -c
             - >-
+              set -euo pipefail;
               export PGPASSWORD="${POSTGRES_PASSWORD}";
-              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -tc
-              "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DB}'" | grep -q 1
-              || psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d postgres -c
-              "CREATE DATABASE \"${POSTGRES_DB}\"";
+              svc_user="$(printenv "${ENV_PREFIX}POSTGRES_USER")";
+              svc_pass="$(printenv "${ENV_PREFIX}POSTGRES_PASSWORD")";
+              svc_db="$(printenv "${ENV_PREFIX}POSTGRES_DB")";
+              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_MAINT_DB}" -v ON_ERROR_STOP=1 -v svc_user="${svc_user}" -v svc_pass="${svc_pass}" -c
+              "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'svc_user', :'svc_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'svc_user') \\gexec";
+              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_MAINT_DB}" -v ON_ERROR_STOP=1 -v svc_db="${svc_db}" -v svc_user="${svc_user}" -c
+              "SELECT format('CREATE DATABASE %I OWNER %I', :'svc_db', :'svc_user') WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'svc_db') \\gexec";
         - name: migrate
-          image: {{ $registryHost }}/project-example/messages:{{ $tagEnv }}-{{ index .Versions "messages" }}
+          image: {{ $registryHost }}/project-example/internal/messages:{{ $tagEnv }}-{{ index .Versions "messages" }}
           envFrom:
             - secretRef:
                 name: db-secret
@@ -65,10 +75,13 @@ spec:
                 name: db-config
             - configMapRef:
                 name: messages-config
-          command: ["sh", "-c", "cd /workspace/services/internal/messages && go run ./cmd/cli migrate up"]
+          volumeMounts:
+            - name: workspace
+              mountPath: {{ $workspaceMount }}
+          command: ["sh", "-c", "cd \"$CODE_ROOT/services/internal/messages\" && go run ./cmd/cli migrate up"]
       containers:
         - name: messages
-          image: {{ $registryHost }}/project-example/messages:{{ $tagEnv }}-{{ index .Versions "messages" }}
+          image: {{ $registryHost }}/project-example/internal/messages:{{ $tagEnv }}-{{ index .Versions "messages" }}
           ports:
             - containerPort: 8080
               name: grpc
@@ -102,6 +115,13 @@ spec:
                 name: db-config
             - configMapRef:
                 name: messages-config
+          volumeMounts:
+            - name: workspace
+              mountPath: {{ $workspaceMount }}
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ $workspacePVC }}
 ---
 apiVersion: v1
 kind: Service

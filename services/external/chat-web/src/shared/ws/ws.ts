@@ -1,8 +1,8 @@
 export type WsEnvelope = { type: string; payload: any };
 
 export function connectWs(onMessage: (msg: WsEnvelope) => void): WebSocket {
-  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${window.location.host}/ws`);
+  // Клиенты ходят только по https -> wss.
+  const ws = new WebSocket(`wss://${window.location.host}/ws`);
   ws.onmessage = (ev) => {
     try {
       const msg = JSON.parse(ev.data);
@@ -13,4 +13,3 @@ export function connectWs(onMessage: (msg: WsEnvelope) => void): WebSocket {
   };
   return ws;
 }
-

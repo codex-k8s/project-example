@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/codex-k8s/project-example/services/internal/users/internal/domain/errs"
 	userrepo "github.com/codex-k8s/project-example/services/internal/users/internal/domain/repository/user"
@@ -36,16 +35,18 @@ var _ userrepo.Repository = (*Repo)(nil)
 
 func (r *Repo) Create(ctx context.Context, u entity.User) (entity.User, error) {
 	row := r.pool.QueryRow(ctx, sqlCreateUser, u.Username, u.PasswordHash)
-	var out entity.User
-	var createdAt time.Time
-	if err := row.Scan(&out.ID, &out.Username, &createdAt); err != nil {
+	cr, ok := row.(pgx.CollectableRow)
+	if !ok {
+		return entity.User{}, fmt.Errorf("DB users.Create: unexpected row type")
+	}
+	out, err := pgx.RowToStructByNameLax[entity.User](cr)
+	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return entity.User{}, errs.Conflict{Msg: "username already exists"}
 		}
 		return entity.User{}, fmt.Errorf("DB users.Create: %w", err)
 	}
-	out.CreatedAt = createdAt
 	out.PasswordHash = u.PasswordHash
 	return out, nil
 }
@@ -60,14 +61,16 @@ func (r *Repo) GetByID(ctx context.Context, id int64) (entity.User, error) {
 
 func (r *Repo) getOne(ctx context.Context, query string, args []any, notFoundID any, op string) (entity.User, error) {
 	row := r.pool.QueryRow(ctx, query, args...)
-	var out entity.User
-	var createdAt time.Time
-	if err := row.Scan(&out.ID, &out.Username, &out.PasswordHash, &createdAt); err != nil {
+	cr, ok := row.(pgx.CollectableRow)
+	if !ok {
+		return entity.User{}, fmt.Errorf("DB users.%s: unexpected row type", op)
+	}
+	out, err := pgx.RowToStructByName[entity.User](cr)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return entity.User{}, errs.NotFound{Entity: "user", ID: notFoundID}
 		}
 		return entity.User{}, fmt.Errorf("DB users.%s: %w", op, err)
 	}
-	out.CreatedAt = createdAt
 	return out, nil
 }

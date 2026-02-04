@@ -11,6 +11,7 @@
 - Доступ: пул соединений; ресурсы закрывать; транзакции минимальной длительности.
 - SQL только с placeholders (без конкатенаций/инъекций).
 - SQL живёт в repository-слое; repo возвращает доменно-осмысленные ошибки (not found/conflict/temporary unavailable); домен не знает про SQL/pgx/ORM.
+- В repo-реализациях на `pgx` используем хелперы маппинга (`pgx.RowToStructByName`, `pgx.CollectRows`, `pgx.CollectOneRow`), а не прямой `Scan`.
 - Реализация repo на Postgres: `internal/repository/postgres/...`; интерфейсы repo: `internal/domain/repository/...`.
 - Запрещено: SQL как строка в Go-коде. Требование:
   - каждый запрос в отдельном `internal/repository/postgres/<model>/sql/*.sql`;
@@ -74,6 +75,10 @@ DLQ:
 - Конфиг только через env/конфиг, управляемый окружением (K8s ConfigMap/Secret).
 - Секреты не хардкодить и не коммитить.
 - Логировать конфиг можно только без секретов (маскировать пароли/токены).
+- Для сервисов с несколькими БД/кешами в одном кластере обязательны префиксы env для изоляции секретов:
+  - сервис задаёт `ENV_PREFIX` (пример: `USERS_`);
+  - Postgres креды: `${ENV_PREFIX}POSTGRES_USER`, `${ENV_PREFIX}POSTGRES_PASSWORD`, `${ENV_PREFIX}POSTGRES_DB`;
+  - Redis креды/параметры: `${ENV_PREFIX}REDIS_PASSWORD` (и при необходимости `${ENV_PREFIX}REDIS_DB`).
 - Новые переменные и секреты добавлять через `gh`:
   - `gh variable set VAR_NAME --env ai-staging --body "value"`
   - `echo "secret_value" | gh secret set SECRET_NAME --env ai-staging`
@@ -102,6 +107,7 @@ DLQ:
 - Каждый сервис: Dockerfile + воспроизводимая сборка.
 - Теги образов версионировать (commit sha / semver / release).
 - `services.yaml` — источник правды: что/куда деплоится. Используется `github.com/codex-k8s/codexctl`.
+- Dev/AI окружения: сервисы запускаются с live-reload (Go: CompileDaemon, Vue: Vite) и монтируют workspace PVC с монорепо; код берётся из `CODE_ROOT` (внутри PVC), чтобы правки агента подхватывались без пересборки образов.
 
 Окружения:
 - dev/ai-staging/staging/prod отличаются только конфигом (не кодом).

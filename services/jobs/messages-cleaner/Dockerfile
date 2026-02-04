@@ -13,5 +13,4 @@ COPY services/jobs/messages-cleaner ./services/jobs/messages-cleaner
 WORKDIR /workspace/services/jobs/messages-cleaner
 RUN go mod download
 
-CMD ["go", "run", "./cmd/messages-cleaner"]
-
+CMD ["bash", "-lc", "ROOT=\"${CODE_ROOT:-/workspace}\"; SVC_DIR=\"$ROOT/services/jobs/messages-cleaner\"; if [ ! -d \"$SVC_DIR\" ]; then echo \"messages-cleaner: code dir not found: $SVC_DIR\" >&2; exit 2; fi; cd \"$SVC_DIR\"; exec go run ./cmd/messages-cleaner"]

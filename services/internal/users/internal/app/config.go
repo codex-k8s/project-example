@@ -11,6 +11,7 @@ type Config struct {
 	ServiceName string
 	GRPCPort    int
 	HTTPPort    int
+	EnvPrefix   string
 }
 
 func LoadConfig() (Config, error) {
@@ -18,6 +19,8 @@ func LoadConfig() (Config, error) {
 	if name == "" {
 		name = "users"
 	}
+
+	envPrefix := strings.TrimSpace(os.Getenv("ENV_PREFIX"))
 
 	grpcPort, err := mustPort("GRPC_PORT", 8080)
 	if err != nil {
@@ -32,6 +35,7 @@ func LoadConfig() (Config, error) {
 		ServiceName: name,
 		GRPCPort:    grpcPort,
 		HTTPPort:    httpPort,
+		EnvPrefix:   envPrefix,
 	}, nil
 }
 

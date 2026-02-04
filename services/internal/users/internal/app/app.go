@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func Run(ctx context.Context) error {
+func Run(ctx context.Context) (runErr error) {
 	cfg, err := LoadConfig()
 	if err != nil {
 		return err
@@ -28,13 +28,25 @@ func Run(ctx context.Context) error {
 
 	log := logger.New(cfg.ServiceName)
 
+	var closers []shutdown.Closer
+	didShutdown := false
+	defer func() {
+		if runErr == nil || didShutdown {
+			return
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		_ = shutdown.Run(shutdownCtx, closers...)
+	}()
+
 	otelShutdown, err := otel.Init(ctx, otel.ConfigFromEnv(cfg.ServiceName), log)
 	if err != nil {
 		log.Error("otel init failed", "err", err)
 		return err
 	}
+	closers = append(closers, otelShutdown)
 
-	pgCfg, err := postgresx.ConfigFromEnv()
+	pgCfg, err := postgresx.ConfigFromEnvWithPrefix(cfg.EnvPrefix)
 	if err != nil {
 		log.Error("postgres config failed", "err", err)
 		return err
@@ -44,6 +56,7 @@ func Run(ctx context.Context) error {
 		log.Error("postgres connect failed", "err", err)
 		return err
 	}
+	closers = append(closers, func(context.Context) error { pool.Close(); return nil })
 
 	repo := userrepo.New(pool)
 	svc := usersvc.New(repo)
@@ -53,6 +66,7 @@ func Run(ctx context.Context) error {
 		log.Error("grpc listen failed", "err", err)
 		return err
 	}
+	closers = append(closers, func(context.Context) error { _ = grpcLis.Close(); return nil })
 
 	grpcServer := grpcx.NewServer(
 		log,
@@ -62,12 +76,27 @@ func Run(ctx context.Context) error {
 		nil,
 	)
 	grpcsvc.Register(grpcServer, svc)
+	closers = append(closers, func(ctx context.Context) error {
+		stopped := make(chan struct{})
+		go func() {
+			grpcServer.GracefulStop()
+			close(stopped)
+		}()
+		select {
+		case <-ctx.Done():
+			grpcServer.Stop()
+			return ctx.Err()
+		case <-stopped:
+			return nil
+		}
+	})
 
 	httpSrv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),
 		ReadHeaderTimeout: 5 * time.Second,
 		Handler:           http.NewServeMux(),
 	}
+	closers = append(closers, func(ctx context.Context) error { return httpSrv.Shutdown(ctx) })
 	mux := httpSrv.Handler.(*http.ServeMux)
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.HandleFunc("/health/livez", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
@@ -106,25 +135,8 @@ func Run(ctx context.Context) error {
 	defer cancel()
 
 	log.Info("shutting down")
-	err = shutdown.Run(shutdownCtx,
-		func(ctx context.Context) error {
-			stopped := make(chan struct{})
-			go func() {
-				grpcServer.GracefulStop()
-				close(stopped)
-			}()
-			select {
-			case <-ctx.Done():
-				grpcServer.Stop()
-				return ctx.Err()
-			case <-stopped:
-				return nil
-			}
-		},
-		func(ctx context.Context) error { return httpSrv.Shutdown(ctx) },
-		func(context.Context) error { pool.Close(); return nil },
-		otelShutdown,
-	)
+	didShutdown = true
+	err = shutdown.Run(shutdownCtx, closers...)
 	if err != nil {
 		logger.WithContext(ctx, log).Error("shutdown finished with error", "err", err)
 		return err

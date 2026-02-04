@@ -3,6 +3,8 @@ package ws
 import (
 	"context"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/codex-k8s/project-example/services/external/chat-gateway/internal/domain/service"
@@ -34,9 +36,23 @@ func (h *Handler) Handle(c *echo.Context) error {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			// Для примера: разрешаем same-origin и отсутствие Origin (некоторые клиенты).
-			origin := r.Header.Get("Origin")
-			return origin == "" || origin == "https://"+r.Host || origin == "http://"+r.Host
+			origin := strings.TrimSpace(r.Header.Get("Origin"))
+			if origin == "" {
+				return false
+			}
+			// По умолчанию: только HTTPS same-origin (клиенты ходят только по https/wss).
+			if origin == "https://"+r.Host {
+				return true
+			}
+			// Дополнительно можно разрешить явный allowlist (через env).
+			if raw := strings.TrimSpace(os.Getenv("WS_ALLOWED_ORIGINS")); raw != "" {
+				for _, v := range strings.Split(raw, ",") {
+					if strings.TrimSpace(v) == origin {
+						return true
+					}
+				}
+			}
+			return false
 		},
 	}
 	conn, err := up.Upgrade(c.Response(), c.Request(), nil)

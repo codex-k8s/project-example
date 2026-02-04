@@ -1,6 +1,10 @@
 {{- $host := ternary (eq .Env "ai") (printf "dev-%d.%s" .Slot (index .BaseDomain "ai")) (index .BaseDomain .Env) -}}
 {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 {{- $tagEnv := ternary (eq .Env "ai") "ai-staging" .Env -}}
+{{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
+{{- $workspaceMount := envOr "CODEXCTL_WORKSPACE_MOUNT" "/workspace" -}}
+{{- $codeRootBase := envOr "CODEXCTL_CODE_ROOT_BASE" (printf "%s/codex/envs" $workspaceMount) -}}
+{{- $codeRoot := ternary (eq .Env "ai") (printf "%s/%d/src" $codeRootBase .Slot) (ternary (or (eq .Env "ai-staging") (eq .Env "ai-repair")) (printf "%s/ai-staging/src" $codeRootBase) (printf "%s/dev/src" $codeRootBase)) -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,6 +12,7 @@ metadata:
   namespace: {{ .Namespace }}
 data:
   SERVICE_NAME: "chat-web"
+  CODE_ROOT: "{{ $codeRoot }}"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -26,7 +31,7 @@ spec:
     spec:
       containers:
         - name: chat-web
-          image: {{ $registryHost }}/project-example/chat-web:{{ $tagEnv }}-{{ index .Versions "chat-web" }}
+          image: {{ $registryHost }}/project-example/external/chat-web:{{ $tagEnv }}-{{ index .Versions "chat-web" }}
           ports:
             - containerPort: 5173
           livenessProbe:
@@ -51,6 +56,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: chat-web-config
+          volumeMounts:
+            - name: workspace
+              mountPath: {{ $workspaceMount }}
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: {{ $workspacePVC }}
 ---
 apiVersion: v1
 kind: Service
@@ -89,4 +101,3 @@ spec:
                 name: chat-web
                 port:
                   number: 80
-

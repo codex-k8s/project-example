@@ -1,10 +1,11 @@
 # syntax=docker/dockerfile:1.4
 
-ARG NODE_IMAGE_VERSION=24-bookworm
+ARG NODE_IMAGE_VERSION=22-bookworm
 FROM node:${NODE_IMAGE_VERSION}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG GOLANG_VERSION=1.25.1
+ARG GOLANG_VERSION=1.25.6
+ARG PROTOC_VERSION=32.1
 ARG CODEX_IMAGE_VERSION
 ENV CODEX_IMAGE_VERSION=${CODEX_IMAGE_VERSION}
 
@@ -44,7 +45,6 @@ RUN curl -fsSL "https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz" -o /tm
  && rm /tmp/go.tgz
 
 RUN set -euo pipefail \
- && PROTOC_VERSION="${PROTOC_VERSION:-32.1}" \
  && TMP_PROTOC_DIR="$(mktemp -d)" \
  && curl -sSL -o "$TMP_PROTOC_DIR/protoc.zip" "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
  && unzip -qo "$TMP_PROTOC_DIR/protoc.zip" -d "$TMP_PROTOC_DIR" \
@@ -55,12 +55,9 @@ RUN set -euo pipefail \
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
-COPY services/django_backend/requirements.txt /tmp/requirements.txt
 RUN python3 -m venv "${VIRTUAL_ENV}" \
  && "${VIRTUAL_ENV}/bin/pip" install --upgrade pip wheel setuptools \
- && "${VIRTUAL_ENV}/bin/pip" install -r /tmp/requirements.txt \
- && "${VIRTUAL_ENV}/bin/pip" install \
-      requests httpx redis psycopg[binary] PyYAML ujson
+ && "${VIRTUAL_ENV}/bin/pip" install requests httpx redis psycopg[binary] PyYAML ujson
 
 # Используем Makefile из репозитория, чтобы не дублировать команды установки утилит.
 RUN mkdir -p /tmp/project-example

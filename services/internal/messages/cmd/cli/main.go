@@ -33,7 +33,7 @@ func runMigrate() {
 	}
 	sub := strings.ToLower(os.Args[2])
 
-	pgCfg, err := postgresx.ConfigFromEnv()
+	pgCfg, err := postgresx.ConfigFromEnvWithPrefix(strings.TrimSpace(os.Getenv("ENV_PREFIX")))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)

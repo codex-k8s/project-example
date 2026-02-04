@@ -37,43 +37,62 @@ func New(pool *pgxpool.Pool) *Repo { return &Repo{pool: pool} }
 
 var _ msgrepo.Repository = (*Repo)(nil)
 
+type ownerRow struct {
+	UserID    int64      `db:"user_id"`
+	DeletedAt *time.Time `db:"deleted_at"`
+}
+
+type deleteRow struct {
+	ID        int64     `db:"id"`
+	DeletedAt time.Time `db:"deleted_at"`
+}
+
 func (r *Repo) Create(ctx context.Context, msg entity.Message) (entity.Message, error) {
 	row := r.pool.QueryRow(ctx, sqlCreate, msg.UserID, msg.Text)
-	var out entity.Message
-	var deletedAt *time.Time
-	if err := row.Scan(&out.ID, &out.UserID, &out.Text, &out.CreatedAt, &deletedAt); err != nil {
+	cr, ok := row.(pgx.CollectableRow)
+	if !ok {
+		return entity.Message{}, fmt.Errorf("DB messages.Create: unexpected row type")
+	}
+	out, err := pgx.RowToStructByName[entity.Message](cr)
+	if err != nil {
 		return entity.Message{}, fmt.Errorf("DB messages.Create: %w", err)
 	}
-	out.DeletedAt = deletedAt
 	return out, nil
 }
 
 func (r *Repo) SoftDelete(ctx context.Context, userID, messageID int64) (entity.Message, error) {
-	var ownerID int64
-	var deletedAt *time.Time
-	if err := r.pool.QueryRow(ctx, sqlGetByID, messageID).Scan(&ownerID, &deletedAt); err != nil {
+	row := r.pool.QueryRow(ctx, sqlGetByID, messageID)
+	cr, ok := row.(pgx.CollectableRow)
+	if !ok {
+		return entity.Message{}, fmt.Errorf("DB messages.GetByID: unexpected row type")
+	}
+	own, err := pgx.RowToStructByName[ownerRow](cr)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return entity.Message{}, errs.NotFound{Entity: "message", ID: messageID}
 		}
-		return entity.Message{}, fmt.Errorf("DB messages.GetByID(id=%d): %w", messageID, err)
+		return entity.Message{}, fmt.Errorf("DB messages.GetByID: %w", err)
 	}
-	if deletedAt != nil {
+	if own.DeletedAt != nil {
 		return entity.Message{}, errs.NotFound{Entity: "message", ID: messageID}
 	}
-	if ownerID != userID {
+	if own.UserID != userID {
 		return entity.Message{}, errs.Forbidden{Msg: "not owner"}
 	}
 
-	row := r.pool.QueryRow(ctx, sqlSoftDelete, messageID)
-	var out entity.Message
-	var outDeletedAt time.Time
-	if err := row.Scan(&out.ID, &outDeletedAt); err != nil {
+	row = r.pool.QueryRow(ctx, sqlSoftDelete, messageID)
+	cr, ok = row.(pgx.CollectableRow)
+	if !ok {
+		return entity.Message{}, fmt.Errorf("DB messages.SoftDelete: unexpected row type")
+	}
+	del, err := pgx.RowToStructByName[deleteRow](cr)
+	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return entity.Message{}, errs.NotFound{Entity: "message", ID: messageID}
 		}
-		return entity.Message{}, fmt.Errorf("DB messages.SoftDelete(message_id=%d): %w", messageID, err)
+		return entity.Message{}, fmt.Errorf("DB messages.SoftDelete: %w", err)
 	}
-	out.DeletedAt = &outDeletedAt
+	out := entity.Message{ID: del.ID, DeletedAt: &del.DeletedAt}
 	return out, nil
 }
 
@@ -84,18 +103,9 @@ func (r *Repo) ListRecent(ctx context.Context, limit int) ([]entity.Message, err
 	}
 	defer rows.Close()
 
-	var out []entity.Message
-	for rows.Next() {
-		var m entity.Message
-		var deletedAt *time.Time
-		if err := rows.Scan(&m.ID, &m.UserID, &m.Text, &m.CreatedAt, &deletedAt); err != nil {
-			return nil, fmt.Errorf("DB messages.ListRecent: scan: %w", err)
-		}
-		m.DeletedAt = deletedAt
-		out = append(out, m)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("DB messages.ListRecent: rows: %w", err)
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.Message])
+	if err != nil {
+		return nil, fmt.Errorf("DB messages.ListRecent: %w", err)
 	}
 	return out, nil
 }
@@ -107,18 +117,14 @@ func (r *Repo) PurgeOld(ctx context.Context, olderThan time.Time) ([]entity.Mess
 	}
 	defer rows.Close()
 
-	var out []entity.Message
-	for rows.Next() {
-		var m entity.Message
-		var deletedAt time.Time
-		if err := rows.Scan(&m.ID, &deletedAt); err != nil {
-			return nil, fmt.Errorf("DB messages.PurgeOld: scan: %w", err)
-		}
-		m.DeletedAt = &deletedAt
-		out = append(out, m)
+	delRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[deleteRow])
+	if err != nil {
+		return nil, fmt.Errorf("DB messages.PurgeOld: %w", err)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("DB messages.PurgeOld: rows: %w", err)
+	out := make([]entity.Message, 0, len(delRows))
+	for _, d := range delRows {
+		dt := d.DeletedAt
+		out = append(out, entity.Message{ID: d.ID, DeletedAt: &dt})
 	}
 	return out, nil
 }

@@ -19,7 +19,7 @@ message Message {
   int64 user_id = 2;
   string text = 3;
   google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp deleted_at = 5; // zero-value => not deleted
+  google.protobuf.Timestamp deleted_at = 5; // nil => not deleted
 }
 
 message CreateMessageRequest {
@@ -42,7 +42,7 @@ message DeleteMessageResponse {
 }
 
 message ListMessagesRequest {
-  int32 limit = 1;
+  optional int32 limit = 1;
 }
 
 message ListMessagesResponse {
@@ -75,4 +75,3 @@ message MessageDeleted {
   int64 message_id = 1;
   google.protobuf.Timestamp deleted_at = 2;
 }
-

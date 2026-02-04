@@ -17,5 +17,4 @@ RUN GOBIN=/usr/local/bin go install github.com/githubnemo/CompileDaemon@latest
 
 ENV HTTP_PORT=8080
 
-CMD ["CompileDaemon", "-build=go build -o /workspace/bin/chat-gateway ./cmd/chat-gateway", "-command=/workspace/bin/chat-gateway", "-graceful-kill=true"]
-
+CMD ["bash", "-lc", "ROOT=\"${CODE_ROOT:-/workspace}\"; SVC_DIR=\"$ROOT/services/external/chat-gateway\"; if [ ! -d \"$SVC_DIR\" ]; then echo \"chat-gateway: code dir not found: $SVC_DIR\" >&2; exit 2; fi; mkdir -p /tmp/bin; exec CompileDaemon -directory=\"$SVC_DIR\" -directory=\"$ROOT/libs/go/common\" -directory=\"$ROOT/proto\" -exclude-dir=node_modules -exclude-dir=generated -exclude-dir=.git -exclude-dir=.local -build-dir=\"$SVC_DIR\" -run-dir=\"$SVC_DIR\" -build='go build -o /tmp/bin/chat-gateway ./cmd/chat-gateway' -command='/tmp/bin/chat-gateway' -graceful-kill=true"]

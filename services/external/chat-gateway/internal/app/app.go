@@ -22,10 +22,9 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/swaggest/swgui/v5emb"
-	"log/slog"
 )
 
-func Run(ctx context.Context) error {
+func Run(ctx context.Context) (runErr error) {
 	cfg, err := LoadConfig()
 	if err != nil {
 		return err
@@ -33,13 +32,25 @@ func Run(ctx context.Context) error {
 
 	log := logger.New(cfg.ServiceName)
 
+	var closers []shutdown.Closer
+	didShutdown := false
+	defer func() {
+		if runErr == nil || didShutdown {
+			return
+		}
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		_ = shutdown.Run(shutdownCtx, closers...)
+	}()
+
 	otelShutdown, err := otel.Init(ctx, otel.ConfigFromEnv(cfg.ServiceName), log)
 	if err != nil {
 		log.Error("otel init failed", "err", err)
 		return err
 	}
+	closers = append(closers, otelShutdown)
 
-	rCfg, err := redisx.ConfigFromEnv()
+	rCfg, err := redisx.ConfigFromEnvWithPrefix(cfg.EnvPrefix)
 	if err != nil {
 		log.Error("redis config failed", "err", err)
 		return err
@@ -49,17 +60,20 @@ func Run(ctx context.Context) error {
 		log.Error("redis connect failed", "err", err)
 		return err
 	}
+	closers = append(closers, func(context.Context) error { _ = rdb.Close(); return nil })
 
 	usersCC, err := grpcx.Dial(ctx, cfg.UsersGRPCAddr)
 	if err != nil {
 		log.Error("users grpc dial failed", "err", err, "addr", cfg.UsersGRPCAddr)
 		return err
 	}
+	closers = append(closers, func(context.Context) error { _ = usersCC.Close(); return nil })
 	msgCC, err := grpcx.Dial(ctx, cfg.MessagesGRPCAddr)
 	if err != nil {
 		log.Error("messages grpc dial failed", "err", err, "addr", cfg.MessagesGRPCAddr)
 		return err
 	}
+	closers = append(closers, func(context.Context) error { _ = msgCC.Close(); return nil })
 
 	users := NewUsersAdapter(usergen.NewUsersServiceClient(usersCC))
 	msgs := NewMessagesAdapter(msggen.NewMessagesServiceClient(msgCC))
@@ -72,7 +86,7 @@ func Run(ctx context.Context) error {
 	wsHandler := ws.NewHandler(hub, auth, cfg.CookieName)
 
 	// Фоновая доставка событий из messages (gRPC stream) -> WS clients.
-	go forwardEvents(ctx, log, chat, hub)
+	go ws.ForwardEvents(ctx, log, chat, hub)
 
 	e := echo.New()
 	e.HTTPErrorHandler = httpmw.ErrorHandler(log)
@@ -109,6 +123,7 @@ func Run(ctx context.Context) error {
 		Handler:           e,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	closers = append(closers, func(ctx context.Context) error { return srv.Shutdown(ctx) })
 
 	serveErr := make(chan error, 1)
 	go func() {
@@ -128,42 +143,12 @@ func Run(ctx context.Context) error {
 	defer cancel()
 
 	log.Info("shutting down")
-	err = shutdown.Run(shutdownCtx,
-		func(ctx context.Context) error { return srv.Shutdown(ctx) },
-		func(context.Context) error { _ = usersCC.Close(); return nil },
-		func(context.Context) error { _ = msgCC.Close(); return nil },
-		func(context.Context) error { _ = rdb.Close(); return nil },
-		otelShutdown,
-	)
+	didShutdown = true
+	err = shutdown.Run(shutdownCtx, closers...)
 	if err != nil {
 		logger.WithContext(ctx, log).Error("shutdown finished with error", "err", err)
 		return err
 	}
 	log.Info("shutdown complete")
 	return nil
-}
-
-func forwardEvents(ctx context.Context, log *slog.Logger, chat *service.Chat, hub *ws.Hub) {
-	backoff := 1 * time.Second
-	for {
-		if ctx.Err() != nil {
-			return
-		}
-		ch, err := chat.Subscribe(ctx)
-		if err != nil {
-			logger.WithContext(ctx, log).Error("subscribe failed", "err", err)
-			time.Sleep(backoff)
-			continue
-		}
-		for evt := range ch {
-			b, err := ws.EncodeEvent(evt)
-			if err != nil {
-				logger.WithContext(ctx, log).Warn("encode ws event failed", "err", err)
-				continue
-			}
-			hub.Broadcast(ctx, b)
-		}
-		// stream завершился — попробуем переподключиться.
-		time.Sleep(backoff)
-	}
 }

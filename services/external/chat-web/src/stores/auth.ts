@@ -7,17 +7,20 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     loading: false as boolean,
-    error: '' as string
+    errorMessage: '' as string,
+    errorKey: '' as string
   }),
   actions: {
     async register(username: string, password: string) {
       this.loading = true;
-      this.error = '';
+      this.errorMessage = '';
+      this.errorKey = '';
       try {
         const { data } = await http.post<User>('/auth/register', { username, password });
         this.user = data;
       } catch (e: any) {
-        this.error = e?.response?.data?.message ?? 'register failed';
+        this.errorMessage = e?.response?.data?.message ?? '';
+        this.errorKey = this.errorMessage ? '' : 'errors.register_failed';
         throw e;
       } finally {
         this.loading = false;
@@ -25,12 +28,14 @@ export const useAuthStore = defineStore('auth', {
     },
     async login(username: string, password: string) {
       this.loading = true;
-      this.error = '';
+      this.errorMessage = '';
+      this.errorKey = '';
       try {
         const { data } = await http.post<User>('/auth/login', { username, password });
         this.user = data;
       } catch (e: any) {
-        this.error = e?.response?.data?.message ?? 'login failed';
+        this.errorMessage = e?.response?.data?.message ?? '';
+        this.errorKey = this.errorMessage ? '' : 'errors.login_failed';
         throw e;
       } finally {
         this.loading = false;
@@ -38,16 +43,17 @@ export const useAuthStore = defineStore('auth', {
     },
     async logout() {
       this.loading = true;
-      this.error = '';
+      this.errorMessage = '';
+      this.errorKey = '';
       try {
         await http.post('/auth/logout');
         this.user = null;
       } catch (e: any) {
-        this.error = e?.response?.data?.message ?? 'logout failed';
+        this.errorMessage = e?.response?.data?.message ?? '';
+        this.errorKey = this.errorMessage ? '' : 'errors.logout_failed';
       } finally {
         this.loading = false;
       }
     }
   }
 });
-

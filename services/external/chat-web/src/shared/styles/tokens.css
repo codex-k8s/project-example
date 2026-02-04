@@ -1,0 +1,19 @@
+:root {
+  --c-bg0: #070a0f;
+  --c-bg1: #0b1220;
+  --c-surface: rgba(20, 30, 48, 0.72);
+  --c-border: rgba(180, 210, 255, 0.14);
+  --c-text: rgba(235, 244, 255, 0.92);
+  --c-muted: rgba(190, 210, 240, 0.72);
+  --c-danger: #ffb4b4;
+
+  --c-accent: #38bdf8;
+  --c-accent2: #a78bfa;
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+

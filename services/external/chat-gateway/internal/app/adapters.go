@@ -17,6 +17,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 type UsersAdapter struct {
@@ -78,7 +79,7 @@ func (a *MessagesAdapter) Delete(ctx context.Context, userID, messageID int64) e
 }
 
 func (a *MessagesAdapter) List(ctx context.Context, limit int) ([]domain.Message, error) {
-	resp, err := a.c.ListMessages(ctx, &msggen.ListMessagesRequest{Limit: int32(limit)})
+	resp, err := a.c.ListMessages(ctx, &msggen.ListMessagesRequest{Limit: proto.Int32(int32(limit))})
 	if err != nil {
 		return nil, mapGRPCError(err)
 	}

@@ -10,5 +10,4 @@ COPY . .
 
 ENV NODE_ENV=development
 
-CMD ["sh", "-c", "if [ ! -d /app/node_modules ]; then npm install --no-package-lock; fi; exec npm run dev -- --host 0.0.0.0 --port 5173"]
-
+CMD ["sh", "-c", "ROOT=\"${CODE_ROOT:-/workspace}\"; APP_DIR=\"$ROOT/services/external/chat-web\"; if [ ! -f \"$APP_DIR/package.json\" ]; then APP_DIR=/app; fi; cd \"$APP_DIR\"; if [ ! -d node_modules ]; then npm install --no-package-lock; fi; exec npm run dev -- --host 0.0.0.0 --port 5173"]

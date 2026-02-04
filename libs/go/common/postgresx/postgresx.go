@@ -19,12 +19,15 @@ type Config struct {
 	DB       string
 }
 
-func ConfigFromEnv() (Config, error) {
-	host := strings.TrimSpace(os.Getenv("POSTGRES_HOST"))
-	portStr := strings.TrimSpace(os.Getenv("POSTGRES_PORT"))
-	user := strings.TrimSpace(os.Getenv("POSTGRES_USER"))
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	db := strings.TrimSpace(os.Getenv("POSTGRES_DB"))
+// ConfigFromEnvWithPrefix reads env vars with a prefix first and falls back to
+// non-prefixed vars. This allows sharing host/port via ConfigMap while keeping
+// per-service credentials in Secrets.
+func ConfigFromEnvWithPrefix(prefix string) (Config, error) {
+	host := strings.TrimSpace(env(prefix, "POSTGRES_HOST"))
+	portStr := strings.TrimSpace(env(prefix, "POSTGRES_PORT"))
+	user := strings.TrimSpace(env(prefix, "POSTGRES_USER"))
+	pass := env(prefix, "POSTGRES_PASSWORD")
+	db := strings.TrimSpace(env(prefix, "POSTGRES_DB"))
 
 	if host == "" || portStr == "" || user == "" || db == "" {
 		return Config{}, fmt.Errorf("postgres config: POSTGRES_HOST/POSTGRES_PORT/POSTGRES_USER/POSTGRES_DB обязательны")
@@ -34,6 +37,15 @@ func ConfigFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("postgres config: parse POSTGRES_PORT: %w", err)
 	}
 	return Config{Host: host, Port: port, User: user, Password: pass, DB: db}, nil
+}
+
+func env(prefix, key string) string {
+	if prefix != "" {
+		if v, ok := os.LookupEnv(prefix + key); ok {
+			return v
+		}
+	}
+	return os.Getenv(key)
 }
 
 func (c Config) DSN() string {
