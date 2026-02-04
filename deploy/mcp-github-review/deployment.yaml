@@ -24,7 +24,7 @@ spec:
       serviceAccountName: yaml-mcp-github-review
       containers:
         - name: yaml-mcp-github-review
-          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
+          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server-github-review:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
           imagePullPolicy: Always
           args: ["--embedded-config", "github_review.yaml"]
           ports:

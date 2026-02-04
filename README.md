@@ -13,7 +13,13 @@
   - планирование задач по метке `[ai-plan]`;
   - разработка с агентом по метке `[ai-dev]`;
   - восстановление стейджинга агентом по метке `[ai-repair]` (если что‑то сломалось);
-  - review/fix по ревью PR.
+- review/fix по ревью PR.
+
+## 🔗 Связанные репозитории
+
+- `codexctl` — CLI‑оркестратор окружений и Codex‑потоков: https://github.com/codex-k8s/codexctl
+- `yaml-mcp-server` — MCP‑gateway с YAML‑DSL и цепочками аппруверов: https://github.com/codex-k8s/yaml-mcp-server
+- `telegram-approver` — Telegram‑аппрувер для approval‑флоу: https://github.com/codex-k8s/telegram-approver
 
 ## MCP‑серверы (yaml-mcp-server)
 
@@ -22,10 +28,12 @@
 - `github_secrets_postgres_k8s_mcp` — approval‑gateway для операций с GitHub secrets и созданием БД PostgreSQL в Kubernetes.
 - `github_review_mcp` — детерминированная работа с review‑комментариями и вопросами в PR (list/reply/resolve).
 
-Оба сервера используют единый образ `yaml-mcp-server`, но разные встроенные конфиги:
+Сервисы используют один код `yaml-mcp-server`, но **разные образы и встроенные конфиги**:
 
-- `configs/github_secrets_postgres_k8s.yaml`
-- `configs/github_review.yaml`
+- `configs/github_secrets_postgres_k8s.yaml` + `deploy/mcp-secrets-postgres-k8s/Dockerfile` (с `kubectl`).
+- `configs/github_review.yaml` + `deploy/mcp-github-review/Dockerfile` (без `kubectl`).
+
+Для approval‑флоу используется отдельный сервис `telegram-approver` (см. `deploy/telegram-approver/`).
 
 Вся конфигурация MCP и tool‑описания находятся в `services.yaml` в секции `codex.mcp.servers`.
 
@@ -41,6 +49,12 @@
 - Secrets: `YAML_MCP_REVIEW_GH_PAT`
 - Variables: `YAML_MCP_REVIEW_GH_USERNAME` (обязательно)
 - Variables (опционально): `YAML_MCP_REVIEW_GITHUB_REPO`, `YAML_MCP_REVIEW_LANG`, `YAML_MCP_REVIEW_LOG_LEVEL`
+
+**telegram-approver (long polling)**
+- Secrets: `TG_APPROVER_TOKEN`
+- Secrets (опционально): `TG_APPROVER_OPENAI_API_KEY`
+- Variables: `TG_APPROVER_CHAT_ID` (обязательно)
+- Variables (опционально): `TG_APPROVER_LANG`, `TG_APPROVER_LOG_LEVEL`, `TG_APPROVER_APPROVAL_TIMEOUT`, `TG_APPROVER_TIMEOUT_MESSAGE`
 
 ## 1. Подготовка кластера (Ubuntu 24.04)
 

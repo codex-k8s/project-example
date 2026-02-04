@@ -24,7 +24,7 @@ spec:
       serviceAccountName: yaml-mcp-secrets-postgres-k8s
       containers:
         - name: yaml-mcp-secrets-postgres-k8s
-          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
+          image: {{ $registryHost }}/project-example/platform/yaml-mcp-server-secrets-postgres-k8s:{{ $tagEnv }}-{{ index .Versions "yaml-mcp-server" }}
           imagePullPolicy: Always
           args: ["--embedded-config", "github_secrets_postgres_k8s.yaml"]
           ports:
