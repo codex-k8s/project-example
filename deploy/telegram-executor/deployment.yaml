@@ -1,0 +1,64 @@
+{{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegram-executor
+  namespace: codex-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telegram-executor
+  template:
+    metadata:
+      labels:
+        app: telegram-executor
+    spec:
+      containers:
+        - name: telegram-executor
+          image: {{ $registryHost }}/project-example/platform/telegram-executor:{{ index .Versions "telegram-executor" }}
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: TG_EXECUTOR_HTTP_HOST
+              value: '{{ envOr "TG_EXECUTOR_HTTP_HOST" "0.0.0.0" }}'
+            - name: TG_EXECUTOR_HTTP_PORT
+              value: '{{ envOr "TG_EXECUTOR_HTTP_PORT" "8080" }}'
+            - name: TG_EXECUTOR_SERVICE_HOST
+              value: '{{ printf "%s.%s.svc.cluster.local" "telegram-executor" "codex-system" }}'
+            - name: TG_EXECUTOR_SERVICE_PORT
+              value: "8080"
+            - name: TG_EXECUTOR_CHAT_ID
+              value: '{{ envOr "TG_EXECUTOR_CHAT_ID" "" }}'
+            - name: TG_EXECUTOR_LANG
+              value: '{{ envOr "TG_EXECUTOR_LANG" "ru" }}'
+            - name: TG_EXECUTOR_LOG_LEVEL
+              value: '{{ envOr "TG_EXECUTOR_LOG_LEVEL" "info" }}'
+            - name: TG_EXECUTOR_EXECUTION_TIMEOUT
+              value: '{{ envOr "TG_EXECUTOR_EXECUTION_TIMEOUT" "1h" }}'
+            - name: TG_EXECUTOR_TIMEOUT_MESSAGE
+              value: '{{ envOr "TG_EXECUTOR_TIMEOUT_MESSAGE" "" }}'
+            - name: TG_EXECUTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-executor-secrets
+                  key: TG_EXECUTOR_TOKEN
+            - name: TG_EXECUTOR_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: telegram-executor-secrets
+                  key: TG_EXECUTOR_OPENAI_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10

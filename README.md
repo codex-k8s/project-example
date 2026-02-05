@@ -25,6 +25,7 @@
 - `codexctl` — CLI‑оркестратор окружений и Codex‑потоков: https://github.com/codex-k8s/codexctl
 - `yaml-mcp-server` — MCP‑gateway с YAML‑DSL и цепочками аппруверов: https://github.com/codex-k8s/yaml-mcp-server
 - `telegram-approver` — Telegram‑аппрувер для approval‑флоу: https://github.com/codex-k8s/telegram-approver
+- `telegram-executor` — Telegram‑executor для async feedback‑флоу: https://github.com/codex-k8s/telegram-executor
 
 ## 📘 Гайды и правила разработки
 
@@ -41,16 +42,19 @@
 
 Сервисы используют один код `yaml-mcp-server`, но **разные образы и встроенные конфиги**:
 
-- `github_secrets_postgres_k8s.yaml` + `deploy/mcp-secrets-postgres-k8s/Dockerfile` (с `kubectl`).
-- `github_review.yaml` + `deploy/mcp-github-review/Dockerfile` (без `kubectl`).
+- `github_secrets_postgres_k8s.yaml` + образ `yaml-mcp-server-secrets-postgres-k8s` (с `kubectl`).
+- `github_review.yaml` + образ `yaml-mcp-server-github-review` (без `kubectl`).
 
 Для approval‑флоу используется отдельный сервис `telegram-approver` (см. `deploy/telegram-approver/`).
+Для async feedback‑флоу добавлен `telegram-executor` (см. `deploy/telegram-executor/`).
 
 Вся конфигурация MCP и tool‑описания находятся в `services.yaml` в секции `codex.mcp.servers`.
 
 ### Переменные и секреты для GitHub
 
 Значения задаются в GitHub (Secrets/Variables) и подставляются в манифесты через `services.yaml`.
+Для owner namespace в GitHub Container Registry используется переменная `GHCR_OWNER`
+(по умолчанию в `services.yaml`: `codex-k8s`).
 
 **mcp-secrets-postgres-k8s**
 - Secrets: `YAML_MCP_SECRETS_GH_PAT`
@@ -72,6 +76,14 @@
 - Variables (опционально): `TG_APPROVER_LANG`, `TG_APPROVER_LOG_LEVEL`, `TG_APPROVER_APPROVAL_TIMEOUT`, `TG_APPROVER_TIMEOUT_MESSAGE`
 - Variables (опционально): `TG_APPROVER_HTTP_HOST`, `TG_APPROVER_HTTP_PORT` (bind‑адрес HTTP‑сервиса)
 - Variables (инфо): `TG_APPROVER_SERVICE_HOST`, `TG_APPROVER_SERVICE_PORT` (service DNS/порт для клиентов)
+
+**telegram-executor (long polling)**
+- Secrets: `TG_EXECUTOR_TOKEN`
+- Secrets (опционально): `TG_EXECUTOR_OPENAI_API_KEY`
+- Variables: `TG_EXECUTOR_CHAT_ID` (обязательно)
+- Variables (опционально): `TG_EXECUTOR_LANG`, `TG_EXECUTOR_LOG_LEVEL`, `TG_EXECUTOR_EXECUTION_TIMEOUT`, `TG_EXECUTOR_TIMEOUT_MESSAGE`
+- Variables (опционально): `TG_EXECUTOR_HTTP_HOST`, `TG_EXECUTOR_HTTP_PORT` (bind‑адрес HTTP‑сервиса)
+- Variables (инфо): `TG_EXECUTOR_SERVICE_HOST`, `TG_EXECUTOR_SERVICE_PORT` (service DNS/порт для клиентов)
 
 ## 1. Подготовка кластера (Ubuntu 24.04)
 
@@ -686,7 +698,7 @@ Kubernetes‑манифесты и документацию под свои се
 Внимательно следите за тем, какие задачи вы поручаете агенту,
 особенно если репозиторий открыт для внешних контрибьюторов.
 
-### MCP‑approval: yaml-mcp-server и telegram-approver
+### MCP‑approval: yaml-mcp-server, telegram-approver и telegram-executor
 
 `yaml-mcp-server` — универсальный MCP‑gateway для опасных операций, который
 **не имеет встроенного разграничения доступа**. Его нужно держать
@@ -696,6 +708,10 @@ Kubernetes‑манифесты и документацию под свои се
 `telegram-approver` — отдельный аппрувер, который принимает решение в одном чате
 и держит **только один активный запрос**. Он не хранит состояние во внешних БД
 и предполагает, что в запросах **нет секретов** (они не маскируются).
+
+`telegram-executor` — отдельный async executor для сбора фидбэка в Telegram
+(`yaml-mcp-server` вызывает `/execute`, а затем получает callback). Он также
+не хранит состояние во внешних БД и должен быть ограничен по сети.
 
 ### Запуск workflow только для доверенных пользователей
 

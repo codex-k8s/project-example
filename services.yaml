@@ -7,6 +7,7 @@
 # {{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
 # {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
 # {{- $codexSystemNs := "codex-system" -}}
+# {{- $ghcrOwner := envOr "GHCR_OWNER" "codex-k8s" -}}
 
 project: project-example
 
@@ -162,6 +163,7 @@ versions:
   protoc: "32.1"
   yaml-mcp-server: "latest"
   telegram-approver: "latest"
+  telegram-executor: "latest"
 
 images:
   busybox:
@@ -244,35 +246,24 @@ images:
       CODEX_IMAGE_VERSION: '{{ index .Versions "codex" }}'
       CODEXCTL_VERSION: '{{ index .Versions "codexctl" }}'
   yaml-mcp-server-secrets-postgres-k8s:
-    type: build
-    repository: '{{ $registryHost }}/project-example/platform/yaml-mcp-server-secrets-postgres-k8s'
-    tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "yaml-mcp-server") }}'
-    dockerfile: 'deploy/mcp-secrets-postgres-k8s/Dockerfile'
-    context: '.'
-    buildArgs:
-      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
-      YAML_MCP_SERVER_VERSION: '{{ index .Versions "yaml-mcp-server" }}'
-      KUBECTL_VERSION: '{{ index .Versions "kubectl" }}'
+    type: external
+    from: 'ghcr.io/{{ $ghcrOwner }}/yaml-mcp-server-secrets-postgres-k8s:{{ index .Versions "yaml-mcp-server" }}'
+    local: '{{ $registryHost }}/project-example/platform/yaml-mcp-server-secrets-postgres-k8s:{{ index .Versions "yaml-mcp-server" }}'
 
   yaml-mcp-server-github-review:
-    type: build
-    repository: '{{ $registryHost }}/project-example/platform/yaml-mcp-server-github-review'
-    tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "yaml-mcp-server") }}'
-    dockerfile: 'deploy/mcp-github-review/Dockerfile'
-    context: '.'
-    buildArgs:
-      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
-      YAML_MCP_SERVER_VERSION: '{{ index .Versions "yaml-mcp-server" }}'
+    type: external
+    from: 'ghcr.io/{{ $ghcrOwner }}/yaml-mcp-server-github-review:{{ index .Versions "yaml-mcp-server" }}'
+    local: '{{ $registryHost }}/project-example/platform/yaml-mcp-server-github-review:{{ index .Versions "yaml-mcp-server" }}'
 
   telegram-approver:
-    type: build
-    repository: '{{ $registryHost }}/project-example/platform/telegram-approver'
-    tagTemplate: '{{ printf "%s-%s" (ternary (or (eq .Env "ai") (eq .Env "ai-repair")) "ai-staging" .Env) (index .Versions "telegram-approver") }}'
-    dockerfile: 'deploy/telegram-approver/Dockerfile'
-    context: '.'
-    buildArgs:
-      GOLANG_IMAGE_VERSION: '{{ index .Versions "golang" }}'
-      TELEGRAM_APPROVER_VERSION: '{{ index .Versions "telegram-approver" }}'
+    type: external
+    from: 'ghcr.io/{{ $ghcrOwner }}/telegram-approver:{{ index .Versions "telegram-approver" }}'
+    local: '{{ $registryHost }}/project-example/platform/telegram-approver:{{ index .Versions "telegram-approver" }}'
+
+  telegram-executor:
+    type: external
+    from: 'ghcr.io/{{ $ghcrOwner }}/telegram-executor:{{ index .Versions "telegram-executor" }}'
+    local: '{{ $registryHost }}/project-example/platform/telegram-executor:{{ index .Versions "telegram-executor" }}'
 
 environments:
   dev:
@@ -328,6 +319,13 @@ infrastructure:
       - path: deploy/telegram-approver/secret.yaml
       - path: deploy/telegram-approver/deployment.yaml
       - path: deploy/telegram-approver/service.yaml
+
+  - name: telegram-executor
+    when: '{{ eq .Env "ai-staging" }}'
+    manifests:
+      - path: deploy/telegram-executor/secret.yaml
+      - path: deploy/telegram-executor/deployment.yaml
+      - path: deploy/telegram-executor/service.yaml
 
   - name: mcp-secrets-postgres-k8s
     when: '{{ eq .Env "ai-staging" }}'
