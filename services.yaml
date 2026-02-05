@@ -6,6 +6,7 @@
 # {{- $slotCodeRoot := $codeRootRel -}}
 # {{- $workspacePVC := envOr "CODEXCTL_WORKSPACE_PVC" (printf "%s-workspace" .Project) -}}
 # {{- $registryHost := envOr "CODEXCTL_REGISTRY_HOST" (printf "registry.%s.svc.cluster.local:5000" .Namespace) -}}
+# {{- $codexSystemNs := "codex-system" -}}
 
 project: project-example
 
@@ -59,6 +60,7 @@ codex:
         service:
           name: yaml-mcp-secrets-postgres-k8s
           namespace: codex-system
+          host: '{{ printf "%s.%s.svc.cluster.local" "yaml-mcp-secrets-postgres-k8s" $codexSystemNs }}'
           port: 8080
           path: /mcp
           scheme: http
@@ -74,6 +76,7 @@ codex:
         service:
           name: yaml-mcp-github-review
           namespace: codex-system
+          host: '{{ printf "%s.%s.svc.cluster.local" "yaml-mcp-github-review" $codexSystemNs }}'
           port: 8080
           path: /mcp
           scheme: http

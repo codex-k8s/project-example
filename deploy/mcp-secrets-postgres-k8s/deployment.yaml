@@ -31,6 +31,14 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            - name: YAML_MCP_HTTP_HOST
+              value: '{{ envOr "YAML_MCP_HTTP_HOST" "0.0.0.0" }}'
+            - name: YAML_MCP_HTTP_PORT
+              value: '{{ envOr "YAML_MCP_HTTP_PORT" "8080" }}'
+            - name: YAML_MCP_SERVICE_HOST
+              value: '{{ printf "%s.%s.svc.cluster.local" "yaml-mcp-secrets-postgres-k8s" "codex-system" }}'
+            - name: YAML_MCP_SERVICE_PORT
+              value: "8080"
             - name: YAML_MCP_LANG
               value: '{{ envOr "YAML_MCP_SECRETS_LANG" "ru" }}'
             - name: YAML_MCP_LOG_LEVEL

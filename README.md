@@ -52,17 +52,23 @@
 **mcp-secrets-postgres-k8s**
 - Secrets: `YAML_MCP_SECRETS_GH_PAT`
 - Variables (опционально): `YAML_MCP_SECRETS_GITHUB_REPO`, `YAML_MCP_SECRETS_APPROVER_URL`, `YAML_MCP_SECRETS_LANG`, `YAML_MCP_SECRETS_LOG_LEVEL`, `YAML_MCP_SECRETS_POSTGRES_POD_SELECTOR`
+- Variables (опционально): `YAML_MCP_HTTP_HOST`, `YAML_MCP_HTTP_PORT` (bind‑адрес MCP‑сервера)
+- Variables (инфо): `YAML_MCP_SERVICE_HOST`, `YAML_MCP_SERVICE_PORT` (service DNS/порт для клиентов)
 
 **mcp-github-review**
 - Secrets: `YAML_MCP_REVIEW_GH_PAT`
 - Variables: `YAML_MCP_REVIEW_GH_USERNAME` (обязательно)
 - Variables (опционально): `YAML_MCP_REVIEW_GITHUB_REPO`, `YAML_MCP_REVIEW_LANG`, `YAML_MCP_REVIEW_LOG_LEVEL`
+- Variables (опционально): `YAML_MCP_HTTP_HOST`, `YAML_MCP_HTTP_PORT` (bind‑адрес MCP‑сервера)
+- Variables (инфо): `YAML_MCP_SERVICE_HOST`, `YAML_MCP_SERVICE_PORT` (service DNS/порт для клиентов)
 
 **telegram-approver (long polling)**
 - Secrets: `TG_APPROVER_TOKEN`
 - Secrets (опционально): `TG_APPROVER_OPENAI_API_KEY`
 - Variables: `TG_APPROVER_CHAT_ID` (обязательно)
 - Variables (опционально): `TG_APPROVER_LANG`, `TG_APPROVER_LOG_LEVEL`, `TG_APPROVER_APPROVAL_TIMEOUT`, `TG_APPROVER_TIMEOUT_MESSAGE`
+- Variables (опционально): `TG_APPROVER_HTTP_HOST`, `TG_APPROVER_HTTP_PORT` (bind‑адрес HTTP‑сервиса)
+- Variables (инфо): `TG_APPROVER_SERVICE_HOST`, `TG_APPROVER_SERVICE_PORT` (service DNS/порт для клиентов)
 
 ## 1. Подготовка кластера (Ubuntu 24.04)
 
