@@ -291,7 +291,7 @@ source ~/.bashrc
   - `codex/*` — Pod Codex, ingress для dev‑слотов и RBAC для service account `codex-sa`;
   - `runner/*` — ARC runner’ы, RBAC и Dockerfile runner‑образа;
 - `services.yaml` — конфигурация `codexctl`;
-- `.github/workflows/*.yml` — CI/CD и AI‑воркфлоу;
+- `.github/workflows/*.yml` — wrapper‑воркфлоу (только триггеры) для reusable‑воркфлоу из `codexctl`;
 - `docs/design-guidelines/**` — обязательные гайды по архитектуре, разработке и дизайну.
 
 ## 3. Запуск self‑hosted GitHub Runner в Kubernetes
@@ -369,7 +369,8 @@ kubectl -n actions-runner-system run kaniko-build --rm -it --restart=Never \
   (и при необходимости `go`/`codexctl`, либо ставить `codexctl` в workflow);
 - выдать serviceAccount права на namespace, с которыми работает `codexctl`.
 
-В этом репозитории workflows используют:
+В этом репозитории workflow — это wrapper’ы с триггерами; вся логика, `runs-on` и `env`
+живут в reusable‑workflow’ах в `codexctl`. Требования к label’ам runner’ов остаются теми же:
 
 ```
 runs-on: [self-hosted, ai]         # AI-dev слоты
@@ -543,7 +544,11 @@ RBAC и удалённые namespace’ы:
 
 - `deploy/secret.yaml`;
 - `services.yaml` (hook’и и apply);
-- GitHub Actions (`ai_staging_deploy.yml`, `ai_*` воркфлоу).
+- GitHub Actions (wrapper‑workflow’ы `.github/workflows/*.yml`, которые вызывают reusable‑workflow’ы из `codexctl`).
+
+Примечание про CI: сами workflow‑тела лежат в `codexctl/.github/workflows/*.yml` и подключаются через
+`uses: codex-k8s/codexctl/.github/workflows/<name>@<ref>`. В `project-example` остаются только триггеры.
+Рекомендуется фиксировать `<ref>` тегом или SHA, чтобы избежать неожиданных изменений.
 
 ## 5. Первый деплой стейджинга
 
