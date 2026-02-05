@@ -35,6 +35,7 @@
     - Данные/состояние/интеграции (axios/Pinia/router/i18n/cookies/PWA/WebSocket): `docs/design-guidelines/vue/frontend_data_and_state.md`
     - Ошибки: `docs/design-guidelines/vue/frontend_error_handling.md`
     - Кодстайл/практики: `docs/design-guidelines/vue/frontend_code_rules.md`
+  - Когда затрагивается UI/визуальный дизайн: обязательно использовать `docs/design-guidelines/visual/AGENTS.md`
 - Перед созданием PR (всегда):
   - Пройти общий чек-лист: `docs/design-guidelines/common/check_list.md`
   - Пройти профильный чек-лист:
@@ -73,4 +74,3 @@
 - `docs/design-guidelines/vue/frontend_error_handling.md` — правила обработки ошибок на фронте.
 - `docs/design-guidelines/vue/frontend_code_rules.md` — правила кодирования (TS/Vue/организация импортов/комментарии).
 - `docs/design-guidelines/vue/libraries.md` — что и как выносить в `libs/{vue,ts,js}`.
-
